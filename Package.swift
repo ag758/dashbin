@@ -4,24 +4,24 @@
 import PackageDescription
 
 let package = Package(
-    name: "Termshelf",
+    name: "Dashbin",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "Termshelf", targets: ["Termshelf"])
+        .executable(name: "Dashbin", targets: ["Dashbin"])
     ],
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.0.0")
     ],
     targets: [
         .executableTarget(
-            name: "Termshelf",
+            name: "Dashbin",
             dependencies: ["SwiftTerm"],
             path: ".", // Sources are in the root directory
-            exclude: ["Termshelf.entitlements"],
+            exclude: ["Dashbin.entitlements"],
             resources: [
-                .process("Termshelf.entitlements")
+                .process("Dashbin.entitlements")
             ]
         )
     ]

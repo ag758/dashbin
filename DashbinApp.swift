@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct TermshelfApp: App {
+struct DashbinApp: App {
     init() {
         // Ensure the app appears in the Dock
         NSApplication.shared.setActivationPolicy(.regular)

@@ -68,7 +68,7 @@ struct TerminalViewWrapper: NSViewRepresentable {
         context.coordinator.setupSubscription(terminalView: terminalView)
         
         // Configure typical terminal settings
-        terminalView.feed(text: "Welcome to Termshelf!\r\n")
+        terminalView.feed(text: "Welcome to Dashbin!\r\n")
         
         // Start the shell
         // We use /bin/zsh as requested
