@@ -62,6 +62,59 @@ struct TerminalViewWrapper: NSViewRepresentable {
     func makeNSView(context: Context) -> LocalProcessTerminalView {
         let terminalView = InteractiveTerminalView(frame: .zero)
         
+        // Hide weird scrollbar glitch by subclassing or configuring the scrollview
+        // Since LocalProcessTerminalView is an NSView, it might be embedded in a ScrollView by SwiftTerm,
+        // OR it inherits from NSScrollView. Let's check inheritance.
+        // LocalProcessTerminalView -> TerminalView -> NSView.
+        // It seems TerminalView manages its own scrollbar OR it expects to be in one.
+        // Actually, looking at SwiftTerm docs/source, TerminalView usually manages drawing.
+        // If there is a "glitching scrollbar", it might be an NSScrollView wrapping it.
+        // BUT, SwiftTerm often includes its own scrollbar logic if using the Mac/iOS kit properly.
+        
+        // Let's try to disable the scroller on the storage if possible, or just the view behavior.
+        // TerminalView.configureNative(wrapper: ...)
+        
+        // Actually, for Mac, TerminalView is just a view. If we see a scrollbar it is likely
+        // because it is wrapped in an NSScrollView in strict AppKit mode or we put it there.
+        // Re-reading SwiftTerm Mac structure:
+        // public open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations
+        
+        // If the user sees a glitchy scrollbar, it might be the default NSScroller.
+        // We can try to force it off if it is indeed an NSScrollView subclass (which it isn't directly),
+        // or if it HAS a scrollview.
+        
+        // Wait, looking at typical usage:
+        // terminalView.enclosingScrollView?.hasVerticalScroller = false
+        // But we are in makeNSView, so it isn't in the hierarchy yet.
+        
+        // Let's try a different approach. We can wrap it in an NSScrollView ourselves and hide it, 
+        // OR simply trust that we can configure it later. 
+        
+        // However, the error said `hasVerticalScroller` is not a member.
+        // This confirms it is NOT an NSScrollView.
+        
+        // If the user sees a scrollbar, maybe they are referring to the SwiftTerm internal one?
+        // terminalView.scrollbarVisible = false ? No.
+        
+        // Let's try searching for a scrollbar property in the library logic usually.
+        // `terminalView.scroller` exists in some versions?
+        
+        // Correct fix for standard NSView glitchiness is often just ensuring layers are backed.
+        terminalView.wantsLayer = true
+        
+        // Since `scroller` is private, we can't hide it directly on the TerminalView.
+        // The most robust way to hide scrollbars in AppKit is to embed the view in a new NSScrollView
+        // that is configured to hide them.
+        // However, standard TerminalView usage in SwiftTerm usually handles its own scrolling.
+        // If we want to hide it, the best we can do without subclassing inside the library is
+        // to look for subviews that are NSScroller and hide them.
+        
+        for subview in terminalView.subviews {
+            if let scroller = subview as? NSScroller {
+                scroller.isHidden = true
+            }
+        }
+        
         // Subscribe to commands
         // We store the cancellable in the context coordinator or the view if possible.
         // NSViewRepresentable context.coordinator is best for lifetime management.

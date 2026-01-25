@@ -13,30 +13,67 @@ struct ContentView: View {
             
             // Right: Sidebar (The Shelf)
             VStack(spacing: 0) {
-                // Search Bar
-                TextField("Search commands...", text: $shelfViewModel.searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(8)
+                // Modern Search Bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Search history...", text: $shelfViewModel.searchText)
+                        .textFieldStyle(.plain)
+                        .font(.body)
+                }
+                .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
+                )
+                .padding(12)
+                .background(.regularMaterial)
+                .zIndex(1) // Ensure it shadows content
                 
+                Divider()
+
                 ScrollViewReader { proxy in
-                    List(shelfViewModel.filteredCommands) { item in
-                        CommandRowView(item: item, viewModel: shelfViewModel)
-                            .id(item.id) // Important for scrolling
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            if shelfViewModel.filteredCommands.isEmpty {
+                                VStack(spacing: 12) {
+                                    Spacer().frame(height: 40)
+                                    Image(systemName: "clock")
+                                        .font(.largeTitle)
+                                        .foregroundColor(.secondary.opacity(0.3))
+                                    Text("No history found")
+                                        .font(.callout)
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                            } else {
+                                ForEach(shelfViewModel.filteredCommands) { item in
+                                    CommandRowView(item: item, viewModel: shelfViewModel)
+                                        .id(item.id)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 8) // Add some horizontal breathing room
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
                     }
-                    .listStyle(.plain) // Cleaner look for side panel
                     .onChange(of: shelfViewModel.commands) { _ in
-                        // Scroll to top when new commands arrive
-                        // Only scroll if we are not actively searching (or if the new command matches)
                         if shelfViewModel.searchText.isEmpty, let first = shelfViewModel.commands.first {
+                            // Using ScrollView, scrollTo works similarly
                             withAnimation {
                                 proxy.scrollTo(first.id, anchor: .top)
                             }
                         }
                     }
                 }
+                .clipped()
             }
-            .frame(minWidth: 200, maxWidth: 300)
-            .background(.thinMaterial)
+            .frame(minWidth: 250, maxWidth: 350)
+            .background(.regularMaterial)
         }
     }
 }
@@ -51,57 +88,73 @@ struct CommandRowView: View {
         case executed
     }
     @State private var feedbackState: FeedbackState = .none
+    @State private var isHovering = false
     
     var body: some View {
         HStack {
-            // Clickable Area (Text + Spacer)
-            HStack {
-                VStack(alignment: .leading) {
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
                     Text(item.command)
                         .font(.system(.body, design: .monospaced))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+                
+                HStack {
                     Group {
                         switch feedbackState {
                         case .copied:
-                            Label("Copied!", systemImage: "checkmark")
+                            Label("Copied", systemImage: "checkmark")
                                 .foregroundColor(.green)
                         case .executed:
-                            Label("Executed!", systemImage: "play.circle.fill")
+                            Label("Running", systemImage: "play.fill")
                                 .foregroundColor(.blue)
                         case .none:
                             Text(item.timestamp, style: .time)
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .font(.caption)
+                    .font(.caption2)
                     .transition(.opacity)
+                    
+                    Spacer()
                 }
-                .animation(.easeInOut(duration: 0.2), value: feedbackState)
-                
-                Spacer()
             }
-            .contentShape(Rectangle()) // Make the text+spacer area tappable
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .contentShape(Rectangle()) 
             .onTapGesture {
-                // Clicking row just copies to clipboard
                 viewModel.copyCommand(item.command)
                 triggerFeedback(.copied)
             }
             
-            // Run Button
-            Button(action: {
-                viewModel.triggerRun(item.command)
-                triggerFeedback(.executed)
-            }) {
-                Image(systemName: "play.fill")
-                    .foregroundColor(.accentColor)
-                    .padding(8) // Add some touch target padding
+            // Actions (Visible on Hover)
+            if isHovering {
+                Button(action: {
+                    viewModel.triggerRun(item.command)
+                    triggerFeedback(.executed)
+                }) {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
             }
-            .buttonStyle(.borderless)
-            .help("Run command immediately")
         }
-        .padding(.vertical, 4)
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isHovering ? Color.primary.opacity(0.05) : Color.clear)
+        )
+        .onHover { hover in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hover
+            }
+        }
     }
     
     private func triggerFeedback(_ state: FeedbackState) {
@@ -109,7 +162,6 @@ struct CommandRowView: View {
             feedbackState = state
         }
         
-        // Reset after delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation {
                 feedbackState = .none
