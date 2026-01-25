@@ -26,6 +26,102 @@ class ShelfViewModel: ObservableObject {
         loadCommands()
     }
     
+    // MARK: - Search
+    @Published var searchText: String = ""
+    
+    var filteredCommands: [CommandItem] {
+        if searchText.isEmpty {
+            return commands
+        }
+        
+        let query = searchText.lowercased()
+        
+        // Filter and sort by score
+        // We use a tuple to store score temporarily
+        let scored = commands.compactMap { item -> (CommandItem, Double)? in
+            if let score = fuzzyScore(item.command, query: query) {
+                return (item, score)
+            }
+            return nil
+        }
+        
+        // Sort descending by score
+        return scored.sorted { $0.1 > $1.1 }.map { $0.0 }
+    }
+    
+    // Simple Fuzzy Match scoring
+    // Returns nil if no match, or a score > 0 (higher is better)
+    private func fuzzyScore(_ candidate: String, query: String) -> Double? {
+        // Quick check: if query is longer than candidate, it can't match
+        if query.count > candidate.count { return nil }
+        
+        let candidateLower = candidate.lowercased()
+        
+        // If query is empty, technically it matches everything, but we handle that upstream.
+        if query.isEmpty { return 1.0 }
+        
+        var score: Double = 0.0
+        var queryIndex = query.startIndex
+        var candidateIndex = candidateLower.startIndex
+        var consecutiveMatches = 0
+        
+        // First character index match bonus
+        var firstMatchIndex: Int? = nil
+        
+        while queryIndex < query.endIndex && candidateIndex < candidateLower.endIndex {
+            let queryChar = query[queryIndex]
+            
+            // Find next occurrence of queryChar in candidate
+            // We search from candidateIndex onwards
+            var found = false
+            var scanIndex = candidateIndex
+            
+            while scanIndex < candidateLower.endIndex {
+                if candidateLower[scanIndex] == queryChar {
+                    found = true
+                    
+                    // Scoring logic
+                    
+                    // 1. Base match
+                    score += 10.0
+                    
+                    // 2. Consecutive match bonus
+                    if scanIndex == candidateIndex {
+                        consecutiveMatches += 1
+                        score += (Double(consecutiveMatches) * 5.0) // snowball effect
+                    } else {
+                        consecutiveMatches = 0
+                    }
+                    
+                    // 3. Start of string bonus
+                    if scanIndex == candidateLower.startIndex {
+                        score += 20.0
+                    }
+                    
+                    // 4. Index penalty (earlier is better)
+                    // We simply subtract a small amount based on distance
+                    let distance = candidateLower.distance(from: candidateLower.startIndex, to: scanIndex)
+                    if firstMatchIndex == nil { firstMatchIndex = distance }
+                    
+                    score -= Double(distance) * 0.1
+                    
+                    // Advance indices
+                    candidateIndex = candidateLower.index(after: scanIndex)
+                    queryIndex = query.index(after: queryIndex)
+                    break
+                }
+                scanIndex = candidateLower.index(after: scanIndex)
+            }
+            
+            if !found {
+                return nil // Character sequence not found
+            }
+        }
+        
+        // If we finished the query, it's a match
+        return queryIndex == query.endIndex ? score : nil
+    }
+    
     private let maxCommandHistory = 5000
     
     // Action stream for Terminal to listen to

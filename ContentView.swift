@@ -12,18 +12,25 @@ struct ContentView: View {
                 .background(Color(red: 0.16, green: 0.16, blue: 0.18)) // Match terminal bg
             
             // Right: Sidebar (The Shelf)
-            // Use a Vstack or List container constrained safely
-            ScrollViewReader { proxy in
-                List(shelfViewModel.commands) { item in
-                    CommandRowView(item: item, viewModel: shelfViewModel)
-                        .id(item.id) // Important for scrolling
-                }
-                .listStyle(.plain) // Cleaner look for side panel
-                .onChange(of: shelfViewModel.commands) { _ in
-                    // Scroll to top when new commands arrive
-                    if let first = shelfViewModel.commands.first {
-                        withAnimation {
-                            proxy.scrollTo(first.id, anchor: .top)
+            VStack(spacing: 0) {
+                // Search Bar
+                TextField("Search commands...", text: $shelfViewModel.searchText)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(8)
+                
+                ScrollViewReader { proxy in
+                    List(shelfViewModel.filteredCommands) { item in
+                        CommandRowView(item: item, viewModel: shelfViewModel)
+                            .id(item.id) // Important for scrolling
+                    }
+                    .listStyle(.plain) // Cleaner look for side panel
+                    .onChange(of: shelfViewModel.commands) { _ in
+                        // Scroll to top when new commands arrive
+                        // Only scroll if we are not actively searching (or if the new command matches)
+                        if shelfViewModel.searchText.isEmpty, let first = shelfViewModel.commands.first {
+                            withAnimation {
+                                proxy.scrollTo(first.id, anchor: .top)
+                            }
                         }
                     }
                 }
