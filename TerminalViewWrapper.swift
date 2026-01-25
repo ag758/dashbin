@@ -7,49 +7,215 @@ import AppKit
 // the Delegate is usually sufficient for simple title changes.
 // For capturing the 'Return' key input specifically to get the line content,
 // we can observe the data sent to the PTY or monitor the buffer.
+// Custom view for ghost text that draws directly without layout manager overhead
+class GhostTextView: NSView {
+    var text: String = "" {
+        didSet { needsDisplay = true }
+    }
+    var textFont: NSFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    var textColor: NSColor = NSColor.secondaryLabelColor.withAlphaComponent(0.5)
+    
+    override var isFlipped: Bool { true }  // Match terminal's coordinate system
+    
+    override func draw(_ dirtyRect: NSRect) {
+        guard !text.isEmpty else { return }
+        
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: textFont,
+            .foregroundColor: textColor
+        ]
+        
+        // Exact baseline alignment as used in SwiftTerm's drawTerminalContents:
+        // yOffset = ceil(lineDescent + lineLeading)
+        // Draw at NSPoint(x: 0, y: yOffset)
+        let descent = CTFontGetDescent(textFont)
+        let leading = CTFontGetLeading(textFont)
+        let yOffset = ceil(descent + leading)
+        
+        text.draw(at: NSPoint(x: 0, y: yOffset), withAttributes: attributes)
+    }
+}
+
 class InteractiveTerminalView: LocalProcessTerminalView {
     var onReturnPressed: ((String) -> Void)?
+    var viewModel: ShelfViewModel?
+    
+    // Custom ghost text view for pixel-perfect alignment
+    private let ghostView = GhostTextView()
+    private var currentSuggestion: String?
+    
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setupGhostView()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupGhostView()
+    }
+    
+    private func setupGhostView() {
+        ghostView.wantsLayer = true
+        ghostView.layer?.backgroundColor = NSColor.clear.cgColor
+        self.addSubview(ghostView)
+    }
+    
+    override func layout() {
+        super.layout()
+        updateGhostText()
+    }
 
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
-        super.send(source: source, data: data)
-        
-        // Check if data contains a "Return" (CR = 13 or LF = 10)
-        // This is a heuristic: when the user types return, it sends a CR to the shell.
-        if data.contains(13) {
-            // We want to capture the CURRENT line before the shell processes the return
-            // However, SwiftTerm's buffer might be updated asynchronously.
-            // A safer bet for "what did the user type" is to read the current line from the screen buffer.
-            
-            // Get the cursor position
-            // In SwiftTerm, the cursor position is often tracked within the buffer or via accessor.
-            // Based on xterm models, buffer.y is typically the cursor row.
-            let cursorY = self.terminal.buffer.y
-            
-            // Get the line content
-            // 'buffer' accesses the screen buffer. 'lines' is an array of screen lines.
-            // We need to be careful about accessibility here.
-            
-            // Note: Accessing terminal internals directly like this relies on SwiftTerm's public API.
-            
-            if let line = self.terminal.getLine(row: cursorY) {
-                // Convert CharData array to String
-                var lineString = ""
-                for i in 0..<self.terminal.cols {
-                    let charData = line[i]
-                    let char = charData.getCharacter()
-                    if char == Character(UnicodeScalar(0)) { break }
-                    lineString.append(char)
+        // Handle TAB for autocomplete (keycode 9)
+        if let first = data.first, first == 9 {
+            if let suggestion = currentSuggestion, let cmd = extractCurrentCommand() {
+                if suggestion.hasPrefix(cmd) {
+                    let suffix = String(suggestion.dropFirst(cmd.count))
+                    if !suffix.isEmpty {
+                        self.send(txt: suffix)
+                        self.currentSuggestion = nil
+                        ghostView.text = ""
+                        ghostView.needsDisplay = true
+                        return
+                    }
                 }
-                
-                // Clean up the prompt. This is tricky because the prompt is part of the line.
-                // A simple approach is to return the whole line, or trust the user to copy what they need.
-                // For a robust implementation, usually one hooks into the shell zshrc to emit an escape sequence
-                // with the command, but per requirements we stick to Swift logic.
-                // We will pass the full line for now, filtering empty ones in ViewModel.
-                
-                onReturnPressed?(lineString)
             }
         }
+        
+        super.send(source: source, data: data)
+        
+        if data.contains(13) {
+             if let cmd = extractCurrentCommand() {
+                 onReturnPressed?(cmd)
+             }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.updateGhostText()
+        }
+    }
+    
+    private func updateGhostText() {
+        guard let viewModel = viewModel else { return }
+        
+        guard let cmd = extractCurrentCommand() else {
+            clearGhost()
+            return
+        }
+        
+        if let suggestion = viewModel.suggestion(for: cmd), suggestion != cmd {
+            self.currentSuggestion = suggestion
+            
+            let suffix = String(suggestion.dropFirst(cmd.count))
+            if suffix.isEmpty {
+                clearGhost()
+                return
+            }
+            
+            let cursorCol = self.terminal.buffer.x
+            let relativeRow = self.terminal.buffer.y // SwiftTerm's y is relative to yBase
+            
+            // USE MIRROR to get yDisp and yBase (internal in SwiftTerm)
+            // yBase is the start of the current scroll region, yDisp is what's on screen.
+            let mirror = Mirror(reflecting: self.terminal.buffer)
+            let yDisp = mirror.descendant("_yDisp") as? Int ?? (mirror.descendant("yDisp") as? Int ?? 0)
+            let yBase = mirror.descendant("_yBase") as? Int ?? (mirror.descendant("yBase") as? Int ?? 0)
+            
+            // Correct screen-relative row: relative row + how far the "active base" is from "visual display"
+            let visibleRow = relativeRow + (yBase - yDisp)
+            
+            // Hide if the cursor position is currently scrolled off screen
+            if visibleRow < 0 || visibleRow >= self.terminal.rows {
+                clearGhost()
+                return
+            }
+            
+            let font = self.font
+            
+            // IDIOMATIC SWIFTTERM CELL CALCULATION:
+            // Match computeFontDimensions() logic from AppleTerminalView.swift
+            let lineAscent = CTFontGetAscent(font)
+            let lineDescent = CTFontGetDescent(font)
+            let lineLeading = CTFontGetLeading(font)
+            let cellHeight = ceil(lineAscent + lineDescent + lineLeading)
+            
+            let glyph = font.glyph(withName: "W")
+            let cellWidth = font.advancement(forGlyph: glyph).width
+            
+            // Tweak these values to align ghost text perfectly with terminal text
+            let ghostXOffset: CGFloat = 0
+            let ghostYOffset: CGFloat = 3.3
+            
+            // X position: col * cellWidth
+            let x = (CGFloat(cursorCol) * cellWidth) + ghostXOffset
+            
+            // Y position Calculation (Bottom-Up):
+            // SwiftTerm's lineOrigin.y = frame.height - cellHeight * CGFloat(row - yDisp + 1)
+            let y = self.bounds.height - (cellHeight * CGFloat(visibleRow + 1)) + ghostYOffset
+            
+            // Size based on text content
+            let width = CGFloat(suffix.count) * cellWidth + 50
+            
+            // Update ghost view
+            ghostView.text = suffix
+            ghostView.textFont = font
+            ghostView.textColor = NSColor.secondaryLabelColor.withAlphaComponent(0.5)
+            ghostView.frame = CGRect(x: x, y: y, width: width, height: cellHeight)
+            ghostView.needsDisplay = true
+             
+        } else {
+            clearGhost()
+        }
+    }
+    
+    private func clearGhost() {
+        currentSuggestion = nil
+        ghostView.text = ""
+        ghostView.needsDisplay = true
+    }
+    
+    private func extractCurrentCommand() -> String? {
+        // Safe access to buffer
+        let cursorY = self.terminal.buffer.y
+        // Ensure row is valid (getLine handles bounds checking internally)
+        // if cursorY >= self.terminal.buffer.lines.count { return nil } -- 'lines' is internal
+        
+        guard let line = self.terminal.getLine(row: cursorY) else { return nil }
+        
+        var lineString = ""
+        for i in 0..<self.terminal.cols {
+            let charData = line[i]
+            let char = charData.getCharacter()
+            // Null char usually ends line content in fixed buffer logic, or just empty space
+            if char == Character(UnicodeScalar(0)) { break }
+            lineString.append(char)
+        }
+        
+        // Strip Prompt using heuristic
+        if let range = lineString.range(of: "[%$#>]\\s", options: .regularExpression, range: nil, locale: nil),
+           range.upperBound < lineString.endIndex {
+            
+            let delimiters: [Character] = ["%", "$", "#", ">"]
+            var lastIndex: String.Index? = nil
+            
+            for delimiter in delimiters {
+                if let idx = lineString.lastIndex(of: delimiter) {
+                    if lastIndex == nil || idx > lastIndex! {
+                        lastIndex = idx
+                    }
+                }
+            }
+            
+            if let idx = lastIndex {
+                let afterDelimiter = lineString.index(after: idx)
+                if afterDelimiter < lineString.endIndex {
+                    return String(lineString[afterDelimiter...]).trimmingCharacters(in: .whitespaces)
+                }
+            }
+        }
+        
+        let trimmed = lineString.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -61,6 +227,7 @@ struct TerminalViewWrapper: NSViewRepresentable {
     
     func makeNSView(context: Context) -> LocalProcessTerminalView {
         let terminalView = InteractiveTerminalView(frame: .zero)
+        terminalView.viewModel = viewModel
         
         // Hide weird scrollbar glitch by subclassing or configuring the scrollview
         // Since LocalProcessTerminalView is an NSView, it might be embedded in a ScrollView by SwiftTerm,
@@ -138,44 +305,10 @@ struct TerminalViewWrapper: NSViewRepresentable {
         terminalView.nativeForegroundColor = NSColor.white
         
         // Set the callback
+        // Note: extractCurrentCommand() already strips the prompt, so we just use the command directly
         terminalView.onReturnPressed = { commandLine in
-            // This runs on the terminal thread, dispatch to main
             DispatchQueue.main.async {
-                // Stripping Heuristic:
-                // Shell prompts typically end with % or $ or # followed by a space
-                // We will look for the LAST occurrence of these common delimiters.
-                
-                var cleanedCommand = commandLine
-                
-                // Typical delimiters: "% ", "$ ", "# ", "> "
-                // We assume the user creates the command AFTER the last prompt char.
-                // NOTE: This might fail if the command itself contains these chars in a way that mimics a prompt,
-                // but it's a sufficient heuristic for "ls" or "git status".
-                
-                if let range = commandLine.range(of: "[%$#>]\\s", options: .regularExpression, range: nil, locale: nil),
-                   range.upperBound < commandLine.endIndex {
-                    // Heuristic: Find the LAST occurrence of common shell delimiters (%, $, #, >)
-                    let delimiters: [Character] = ["%", "$", "#", ">"]
-                    var lastIndex: String.Index? = nil
-                    
-                    for delimiter in delimiters {
-                        if let idx = commandLine.lastIndex(of: delimiter) {
-                            if lastIndex == nil || idx > lastIndex! {
-                                lastIndex = idx
-                            }
-                        }
-                    }
-                    
-                    if let idx = lastIndex {
-                        // Advance past the delimiter
-                        let afterDelimiter = commandLine.index(after: idx)
-                        if afterDelimiter < commandLine.endIndex {
-                            cleanedCommand = String(commandLine[afterDelimiter...])
-                        }
-                    }
-                }
-                
-                let finalCommand = cleanedCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+                let finalCommand = commandLine.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !finalCommand.isEmpty {
                     self.viewModel.addCommand(finalCommand)
                 }

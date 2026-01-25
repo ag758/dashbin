@@ -45,8 +45,36 @@ class ShelfViewModel: ObservableObject {
             return nil
         }
         
-        // Sort descending by score
+        // Sort descending by score. If tied, keep original order (recency) by using the index difference? 
+        // Swift's sort is not stable, so let's try to be stable if we care. 
+        // For now, simple sort is fine, but maybe prefer shorter commands for ties?
         return scored.sorted { $0.1 > $1.1 }.map { $0.0 }
+    }
+    
+    var suggestedCommand: String? {
+        return suggestion(for: searchText)
+    }
+    
+    func suggestion(for partial: String) -> String? {
+        guard !partial.isEmpty else { return nil }
+        
+        // We can optimize this by not sorting everything if we just want the best prefix match.
+        // But reusing filtered logic ensures consistency.
+        // However, 'filteredCommands' relies on 'searchText'.
+        // We should replicate the logic for an arbitrary query safely.
+        
+        let query = partial.lowercased()
+        
+        // Find best match in commands
+        // We prioritize prefix matches for autocomplete
+        // Simple scan:
+        for item in commands {
+            let cmdLower = item.command.lowercased()
+            if cmdLower.hasPrefix(query) {
+                return item.command
+            }
+        }
+        return nil
     }
     
     // Simple Fuzzy Match scoring

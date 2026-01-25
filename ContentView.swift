@@ -19,9 +19,44 @@ struct ContentView: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
                     
-                    TextField("Search history...", text: $shelfViewModel.searchText)
-                        .textFieldStyle(.plain)
-                        .font(.body)
+                    ZStack(alignment: .leading) {
+                        // Ghost Text (Autocomplete Suggestion)
+                        if let suggestion = shelfViewModel.suggestedCommand, 
+                           !shelfViewModel.searchText.isEmpty,
+                           suggestion.lowercased().hasPrefix(shelfViewModel.searchText.lowercased()) {
+                            
+                            // Construct the ghost text with invisible prefix to assume perfect alignment
+                            // This works best with Monospaced font
+                            let prefix = String(suggestion.prefix(shelfViewModel.searchText.count))
+                            let suffix = String(suggestion.dropFirst(shelfViewModel.searchText.count))
+                            
+                            (Text(prefix).foregroundColor(.clear) + Text(suffix).foregroundColor(.secondary.opacity(0.5)))
+                                .font(.system(.body, design: .monospaced))
+                                .allowsHitTesting(false)
+                        }
+                        
+                        TextField("Search history...", text: $shelfViewModel.searchText)
+                            .textFieldStyle(.plain)
+                            .font(.system(.body, design: .monospaced))
+                            .onKeyPress(.tab) {
+                                if let suggestion = shelfViewModel.suggestedCommand {
+                                    shelfViewModel.searchText = suggestion
+                                    return .handled
+                                }
+                                return .ignored
+                            }
+                    }
+                    
+                    // Visual Hint for Autocomplete
+                    if shelfViewModel.suggestedCommand != nil && !shelfViewModel.searchText.isEmpty {
+                        Text("TAB")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.1))
+                            .cornerRadius(4)
+                    }
                 }
                 .padding(10)
                 .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
