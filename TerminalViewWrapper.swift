@@ -186,7 +186,7 @@ class InteractiveTerminalView: LocalProcessTerminalView {
             // Find the start of the command block.
             var startRow = row
             while startRow > 0 {
-                guard let line = self.terminal.getLine(row: startRow) else { break }
+                guard let line = self.terminal.getScrollInvariantLine(row: startRow) else { break }
                 let lineMirror = Mirror(reflecting: line)
                 let isWrapped = lineMirror.descendant("isWrapped") as? Bool ?? false
                 if isWrapped {
@@ -198,7 +198,7 @@ class InteractiveTerminalView: LocalProcessTerminalView {
             
             var combined = ""
             for y in startRow...row {
-                guard let line = self.terminal.getLine(row: y) else { continue }
+                guard let line = self.terminal.getScrollInvariantLine(row: y) else { continue }
                 combined.append(line.translateToString(trimRight: true))
             }
             
