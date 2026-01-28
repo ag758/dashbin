@@ -215,12 +215,12 @@ class InteractiveTerminalView: LocalProcessTerminalView {
                 if let lastMatch = matches.last {
                     let afterPrompt = nsString.substring(from: lastMatch.range.location + lastMatch.range.length)
                     let candidate = afterPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !candidate.isEmpty {
-                        return candidate
-                    }
+                    // If we found a prompt but there's nothing after it, this is an empty command
+                    return candidate.isEmpty ? nil : candidate
                 }
             }
             
+            // Fallback only if no prompt was detected at all
             let trimmedFallback = lineString.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmedFallback.isEmpty ? nil : trimmedFallback
         }
