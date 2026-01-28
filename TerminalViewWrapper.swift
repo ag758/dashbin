@@ -175,55 +175,63 @@ class InteractiveTerminalView: LocalProcessTerminalView {
     }
     
     private func extractCurrentCommand() -> String? {
-        // Safe access to buffer and yBase
         let mirror = Mirror(reflecting: self.terminal.buffer)
         let yBase = mirror.descendant("_yBase") as? Int ?? (mirror.descendant("yBase") as? Int ?? 0)
         let cursorY = self.terminal.buffer.y
         let absY = cursorY + yBase
         
-        // Find the start of the command block by moving upwards as long as lines are wrapped
-        var startY = absY
-        while startY > 0 {
-            guard let prevLine = self.terminal.getLine(row: startY - 1) else { break }
-            let lineMirror = Mirror(reflecting: prevLine)
-            let isWrapped = lineMirror.descendant("isWrapped") as? Bool ?? false
-            if isWrapped {
-                startY -= 1
-            } else {
-                break
-            }
-        }
-        
-        // Collect and consolidate all lines in the block
-        var combinedString = ""
-        for y in startY...absY {
-            guard let line = self.terminal.getLine(row: y) else { continue }
-            // For intermediate lines, we want the full width (cols)
-            // For the last line, we trim trailing spaces
-            let isLastLine = (y == absY)
-            combinedString.append(line.translateToString(trimRight: isLastLine))
-        }
-        
-        var lineString = combinedString
-        
-        // Strip Prompt using heuristic
-        // We look for common prompt endings: "% ", "$ ", "# ", "> ", "❯ ", etc.
-        let promptEndings = ["% ", "$ ", "# ", "> ", "❯ ", "➜ ", "%", "$", "#", ">"]
-        var stripped = false
-        
-        for ending in promptEndings {
-            if let range = lineString.range(of: ending, options: .backwards) {
-                let candidate = String(lineString[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !candidate.isEmpty {
-                    lineString = candidate
-                    stripped = true
+        func getCommand(at row: Int) -> String? {
+            guard row >= 0 else { return nil }
+            
+            // Find the start of the command block.
+            var startRow = row
+            while startRow > 0 {
+                guard let line = self.terminal.getLine(row: startRow) else { break }
+                let lineMirror = Mirror(reflecting: line)
+                let isWrapped = lineMirror.descendant("isWrapped") as? Bool ?? false
+                if isWrapped {
+                    startRow -= 1
+                } else {
                     break
                 }
             }
+            
+            var combined = ""
+            for y in startRow...row {
+                guard let line = self.terminal.getLine(row: y) else { continue }
+                combined.append(line.translateToString(trimRight: true))
+            }
+            
+            let lineString = combined
+            if lineString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return nil
+            }
+            
+            // Flexible regex for prompt stripping
+            let pattern = #".*[%$#>❯➜\]\)] *"#
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                let nsString = lineString as NSString
+                let matches = regex.matches(in: lineString, options: [], range: NSRange(location: 0, length: nsString.length))
+                if let lastMatch = matches.last {
+                    let afterPrompt = nsString.substring(from: lastMatch.range.location + lastMatch.range.length)
+                    let candidate = afterPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !candidate.isEmpty {
+                        return candidate
+                    }
+                }
+            }
+            
+            let trimmedFallback = lineString.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmedFallback.isEmpty ? nil : trimmedFallback
         }
         
-        let finalResult = stripped ? lineString : lineString.trimmingCharacters(in: .whitespacesAndNewlines)
-        return finalResult.isEmpty ? nil : finalResult
+        // Try the current line first.
+        if let cmd = getCommand(at: absY) {
+            return cmd
+        }
+        
+        // If current line is empty, the shell might have moved down already. Try the line above.
+        return getCommand(at: absY - 1)
     }
 }
 
