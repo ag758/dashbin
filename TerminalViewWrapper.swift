@@ -184,8 +184,8 @@ class InteractiveTerminalView: LocalProcessTerminalView {
         // Find the start of the command block by moving upwards as long as lines are wrapped
         var startY = absY
         while startY > 0 {
-            guard let line = self.terminal.getLine(row: startY) else { break }
-            let lineMirror = Mirror(reflecting: line)
+            guard let prevLine = self.terminal.getLine(row: startY - 1) else { break }
+            let lineMirror = Mirror(reflecting: prevLine)
             let isWrapped = lineMirror.descendant("isWrapped") as? Bool ?? false
             if isWrapped {
                 startY -= 1
@@ -198,38 +198,32 @@ class InteractiveTerminalView: LocalProcessTerminalView {
         var combinedString = ""
         for y in startY...absY {
             guard let line = self.terminal.getLine(row: y) else { continue }
-            // For intermediate lines, we want the full width (including trailing spaces that might be part of the command)
-            // For the last line, we trim trailing spaces (the ones that the user hasn't typed yet)
-            combinedString.append(line.translateToString(trimRight: y == absY))
+            // For intermediate lines, we want the full width (cols)
+            // For the last line, we trim trailing spaces
+            let isLastLine = (y == absY)
+            combinedString.append(line.translateToString(trimRight: isLastLine))
         }
         
-        let lineString = combinedString
+        var lineString = combinedString
         
         // Strip Prompt using heuristic
-        if let range = lineString.range(of: "[%$#>]\\s", options: .regularExpression, range: nil, locale: nil),
-           range.upperBound < lineString.endIndex {
-            
-            let delimiters: [Character] = ["%", "$", "#", ">"]
-            var lastIndex: String.Index? = nil
-            
-            for delimiter in delimiters {
-                if let idx = lineString.lastIndex(of: delimiter) {
-                    if lastIndex == nil || idx > lastIndex! {
-                        lastIndex = idx
-                    }
-                }
-            }
-            
-            if let idx = lastIndex {
-                let afterDelimiter = lineString.index(after: idx)
-                if afterDelimiter < lineString.endIndex {
-                    return String(lineString[afterDelimiter...]).trimmingCharacters(in: .whitespaces)
+        // We look for common prompt endings: "% ", "$ ", "# ", "> ", "❯ ", etc.
+        let promptEndings = ["% ", "$ ", "# ", "> ", "❯ ", "➜ ", "%", "$", "#", ">"]
+        var stripped = false
+        
+        for ending in promptEndings {
+            if let range = lineString.range(of: ending, options: .backwards) {
+                let candidate = String(lineString[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !candidate.isEmpty {
+                    lineString = candidate
+                    stripped = true
+                    break
                 }
             }
         }
         
-        let trimmed = lineString.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? nil : trimmed
+        let finalResult = stripped ? lineString : lineString.trimmingCharacters(in: .whitespacesAndNewlines)
+        return finalResult.isEmpty ? nil : finalResult
     }
 }
 

@@ -164,18 +164,21 @@ class ShelfViewModel: ObservableObject {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         
-        // For "unique command strings" per requirements:
-        if !commands.contains(where: { $0.command == trimmed }) {
-            DispatchQueue.main.async {
-                self.commands.insert(CommandItem(command: trimmed), at: 0)
-                
-                // Enforce limit
-                if self.commands.count > self.maxCommandHistory {
-                    self.commands = Array(self.commands.prefix(self.maxCommandHistory))
-                }
-                
-                self.saveCommands()
+        DispatchQueue.main.async {
+            // Remove existing instances of this command so it can be moved to the top
+            if let index = self.commands.firstIndex(where: { $0.command == trimmed }) {
+                self.commands.remove(at: index)
             }
+            
+            // Insert newest at the top
+            self.commands.insert(CommandItem(command: trimmed), at: 0)
+            
+            // Enforce limit
+            if self.commands.count > self.maxCommandHistory {
+                self.commands = Array(self.commands.prefix(self.maxCommandHistory))
+            }
+            
+            self.saveCommands()
         }
     }
     
