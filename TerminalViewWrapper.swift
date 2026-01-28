@@ -15,24 +15,43 @@ class GhostTextView: NSView {
     var textFont: NSFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
     var textColor: NSColor = NSColor.secondaryLabelColor.withAlphaComponent(0.5)
     
+    var cursorCol: Int = 0
+    var terminalCols: Int = 80
+    var cellWidth: CGFloat = 0
+    var cellHeight: CGFloat = 0
+    
     override var isFlipped: Bool { true }  // Match terminal's coordinate system
     
     override func draw(_ dirtyRect: NSRect) {
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty, cellWidth > 0, cellHeight > 0 else { return }
         
         let attributes: [NSAttributedString.Key: Any] = [
             .font: textFont,
             .foregroundColor: textColor
         ]
         
-        // Exact baseline alignment as used in SwiftTerm's drawTerminalContents:
-        // yOffset = ceil(lineDescent + lineLeading)
-        // Draw at NSPoint(x: 0, y: yOffset)
-        let descent = CTFontGetDescent(textFont)
-        let leading = CTFontGetLeading(textFont)
-        let yOffset = ceil(descent + leading)
+        // Natural vertical offset to match terminal text baseline.
+        // Usually approximately ceil(leading / 2.0), but 1.5 is a solid default for SF Mono in this context.
+        let yOffset = CGFloat(1.5)
         
-        text.draw(at: NSPoint(x: 0, y: yOffset), withAttributes: attributes)
+        let availableOnFirstLine = max(0, terminalCols - cursorCol)
+        var currentText = text
+        var currentRow: Int = 0
+        
+        // Draw first line starting at cursorCol
+        let firstLinePart = String(currentText.prefix(availableOnFirstLine))
+        firstLinePart.draw(at: NSPoint(x: CGFloat(cursorCol) * cellWidth, y: yOffset), withAttributes: attributes)
+        
+        currentText = String(currentText.dropFirst(availableOnFirstLine))
+        
+        // Draw subsequent lines starting at column 0
+        while !currentText.isEmpty {
+            currentRow += 1
+            let linePart = String(currentText.prefix(terminalCols))
+            let yPos = CGFloat(currentRow) * cellHeight + yOffset
+            linePart.draw(at: NSPoint(x: 0, y: yPos), withAttributes: attributes)
+            currentText = String(currentText.dropFirst(terminalCols))
+        }
     }
 }
 
@@ -113,27 +132,20 @@ class InteractiveTerminalView: LocalProcessTerminalView {
             }
             
             let cursorCol = self.terminal.buffer.x
-            let relativeRow = self.terminal.buffer.y // SwiftTerm's y is relative to yBase
+            let relativeRow = self.terminal.buffer.y
             
-            // USE MIRROR to get yDisp and yBase (internal in SwiftTerm)
-            // yBase is the start of the current scroll region, yDisp is what's on screen.
             let mirror = Mirror(reflecting: self.terminal.buffer)
             let yDisp = mirror.descendant("_yDisp") as? Int ?? (mirror.descendant("yDisp") as? Int ?? 0)
             let yBase = mirror.descendant("_yBase") as? Int ?? (mirror.descendant("yBase") as? Int ?? 0)
             
-            // Correct screen-relative row: relative row + how far the "active base" is from "visual display"
             let visibleRow = relativeRow + (yBase - yDisp)
             
-            // Hide if the cursor position is currently scrolled off screen
             if visibleRow < 0 || visibleRow >= self.terminal.rows {
                 clearGhost()
                 return
             }
             
             let font = self.font
-            
-            // IDIOMATIC SWIFTTERM CELL CALCULATION:
-            // Match computeFontDimensions() logic from AppleTerminalView.swift
             let lineAscent = CTFontGetAscent(font)
             let lineDescent = CTFontGetDescent(font)
             let lineLeading = CTFontGetLeading(font)
@@ -142,25 +154,42 @@ class InteractiveTerminalView: LocalProcessTerminalView {
             let glyph = font.glyph(withName: "W")
             let cellWidth = font.advancement(forGlyph: glyph).width
             
-            // Tweak these values to align ghost text perfectly with terminal text
-            let ghostXOffset: CGFloat = 0
-            let ghostYOffset: CGFloat = 3.3
+            // Calculate wrapping to determine height
+            let availableOnFirstLine = max(0, self.terminal.cols - cursorCol)
+            var neededRows = 1
+            if suffix.count > availableOnFirstLine {
+                let remaining = suffix.count - availableOnFirstLine
+                neededRows += Int(ceil(Double(remaining) / Double(self.terminal.cols)))
+            }
             
-            // X position: col * cellWidth
-            let x = (CGFloat(cursorCol) * cellWidth) + ghostXOffset
+            // Tweak this value to align ghost text perfectly. 
+            // Increasing this moves the text UP. 
+            let ghostYOffset: CGFloat = 1.5
             
-            // Y position Calculation (Bottom-Up):
-            // SwiftTerm's lineOrigin.y = frame.height - cellHeight * CGFloat(row - yDisp + 1)
-            let y = self.bounds.height - (cellHeight * CGFloat(visibleRow + 1)) + ghostYOffset
+            // X position: 0 (view handles its own horizontal offsets)
+            let x: CGFloat = 0
             
-            // Size based on text content
-            let width = CGFloat(suffix.count) * cellWidth + 50
+            // Y position calculation (bottom-up coordinate system)
+            // lineBottom is the y-coordinate of the bottom edge of the current cursor row.
+            let lineBottom = self.bounds.height - (cellHeight * CGFloat(visibleRow + 1))
             
-            // Update ghost view
+            // The first line of ghost text should align perfectly with the current cursor row.
+            // Terminal row occupies [lineBottom, lineBottom + cellHeight].
+            // To grow downwards, the view's origin.y (bottom) must be shifted down.
+            let height = CGFloat(neededRows) * cellHeight
+            let y = lineBottom + cellHeight - height + ghostYOffset
+            
+            let width = self.bounds.width
+            
+            ghostView.cursorCol = cursorCol
+            ghostView.terminalCols = self.terminal.cols
+            ghostView.cellWidth = cellWidth
+            ghostView.cellHeight = cellHeight
+            
             ghostView.text = suffix
             ghostView.textFont = font
             ghostView.textColor = NSColor.secondaryLabelColor.withAlphaComponent(0.5)
-            ghostView.frame = CGRect(x: x, y: y, width: width, height: cellHeight)
+            ghostView.frame = CGRect(x: x, y: y, width: width, height: height)
             ghostView.needsDisplay = true
              
         } else {
