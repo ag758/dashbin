@@ -175,21 +175,35 @@ class InteractiveTerminalView: LocalProcessTerminalView {
     }
     
     private func extractCurrentCommand() -> String? {
-        // Safe access to buffer
+        // Safe access to buffer and yBase
+        let mirror = Mirror(reflecting: self.terminal.buffer)
+        let yBase = mirror.descendant("_yBase") as? Int ?? (mirror.descendant("yBase") as? Int ?? 0)
         let cursorY = self.terminal.buffer.y
-        // Ensure row is valid (getLine handles bounds checking internally)
-        // if cursorY >= self.terminal.buffer.lines.count { return nil } -- 'lines' is internal
+        let absY = cursorY + yBase
         
-        guard let line = self.terminal.getLine(row: cursorY) else { return nil }
-        
-        var lineString = ""
-        for i in 0..<self.terminal.cols {
-            let charData = line[i]
-            let char = charData.getCharacter()
-            // Null char usually ends line content in fixed buffer logic, or just empty space
-            if char == Character(UnicodeScalar(0)) { break }
-            lineString.append(char)
+        // Find the start of the command block by moving upwards as long as lines are wrapped
+        var startY = absY
+        while startY > 0 {
+            guard let line = self.terminal.getLine(row: startY) else { break }
+            let lineMirror = Mirror(reflecting: line)
+            let isWrapped = lineMirror.descendant("isWrapped") as? Bool ?? false
+            if isWrapped {
+                startY -= 1
+            } else {
+                break
+            }
         }
+        
+        // Collect and consolidate all lines in the block
+        var combinedString = ""
+        for y in startY...absY {
+            guard let line = self.terminal.getLine(row: y) else { continue }
+            // For intermediate lines, we want the full width (including trailing spaces that might be part of the command)
+            // For the last line, we trim trailing spaces (the ones that the user hasn't typed yet)
+            combinedString.append(line.translateToString(trimRight: y == absY))
+        }
+        
+        let lineString = combinedString
         
         // Strip Prompt using heuristic
         if let range = lineString.range(of: "[%$#>]\\s", options: .regularExpression, range: nil, locale: nil),
