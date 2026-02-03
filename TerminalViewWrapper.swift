@@ -335,13 +335,34 @@ struct TerminalViewWrapper: NSViewRepresentable {
         // Configure typical terminal settings
         terminalView.feed(text: "Welcome to Dashbin!\r\n")
         
-        // Start the shell
-        // We use /bin/zsh as requested
-        let entry = "/bin/zsh"
-        // Setup the local process
-        // We generally need to run this on appearance, but valid here too.
-        // Arguments: empty for default shell behavior
-        terminalView.startProcess(executable: entry, args: [], environment: nil, execName: nil)
+        // Configure shell environment variables with explicit user context
+        var env = ProcessInfo.processInfo.environment
+        let userName = NSUserName()
+        let homeDir = NSHomeDirectory()
+        
+        env["USER"] = userName
+        env["LOGNAME"] = userName
+        env["HOME"] = homeDir
+        env["TERM"] = "xterm-256color"
+        env["SHELL"] = "/bin/zsh"
+        
+        // Prioritize system paths in PATH to ensure commands like sudo/ls are found
+        let systemPaths = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+        let currentPath = env["PATH"] ?? ""
+        let existingComponents = currentPath.split(separator: ":").map(String.init)
+        // Filter out system paths from existing to avoid duplicates, then prepend
+        let filteredComponents = existingComponents.filter { !systemPaths.contains($0) }
+        let newPath = (systemPaths + filteredComponents).joined(separator: ":")
+        env["PATH"] = newPath
+        
+        // Convert environment dictionary to array of strings (KEY=VALUE) as expected by startProcess
+        let envStrings = env.map { "\($0.key)=\($0.value)" }
+        
+        // Use /usr/bin/login to ensure a proper TTY session and permissions (fixes sudo issues)
+        // -f: Force login as user (no password needed for current user)
+        // -p: Preserve environment variables
+        // This implicitly launches the default shell (zsh) with the context initialized
+        terminalView.startProcess(executable: "/usr/bin/login", args: ["-f", "-p", userName], environment: envStrings)
         
         // Theme (Midnight/Dracula-ish)
         // SwiftTerm has built-in themes but we can set colors manually or check if `apply(theme:)` is available
