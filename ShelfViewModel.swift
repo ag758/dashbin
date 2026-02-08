@@ -196,13 +196,18 @@ class ShelfViewModel: ObservableObject {
         guard !trimmed.isEmpty else { return }
         
         DispatchQueue.main.async {
+            var existingIsPinned = false
+            
             // Remove existing instances of this command so it can be moved to the top
             if let index = self.commands.firstIndex(where: { $0.command == trimmed }) {
+                existingIsPinned = self.commands[index].isPinned ?? false
                 self.commands.remove(at: index)
             }
             
-            // Insert newest at the top
-            self.commands.insert(CommandItem(command: trimmed), at: 0)
+            // Insert newest at the top, preserving pinned status if it was already pinned
+            var newItem = CommandItem(command: trimmed)
+            newItem.isPinned = existingIsPinned
+            self.commands.insert(newItem, at: 0)
             
             // Enforce limit
             if self.commands.count > self.maxCommandHistory {
