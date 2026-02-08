@@ -1,114 +1,141 @@
 import SwiftUI
 import SwiftTerm
 
+extension SwiftUI.Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
+    
+    static let dashbinPrimary = SwiftUI.Color(hex: "172884")
+}
+
 struct ContentView: View {
     @StateObject private var shelfViewModel = ShelfViewModel()
     
     var body: some View {
-        HSplitView {
-            // Left: Main Content (Terminal)
-            TerminalViewWrapper(viewModel: shelfViewModel)
-                .frame(minWidth: 400, minHeight: 300)
-                .background(Color(red: 0.16, green: 0.16, blue: 0.18)) // Match terminal bg
+        VStack(spacing: 0) {
+            //SwiftUI.Color.dashbinPrimary
+                //.frame(height: 24)
             
-            // Right: Sidebar (The Shelf)
-            VStack(spacing: 0) {
-                // Modern Search Bar
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    ZStack(alignment: .leading) {
-                        // Ghost Text (Autocomplete Suggestion)
-                        if let suggestion = shelfViewModel.suggestedCommand, 
-                           !shelfViewModel.searchText.isEmpty,
-                           suggestion.lowercased().hasPrefix(shelfViewModel.searchText.lowercased()) {
-                            
-                            // Construct the ghost text with invisible prefix to assume perfect alignment
-                            // This works best with Monospaced font
-                            let prefix = String(suggestion.prefix(shelfViewModel.searchText.count))
-                            let suffix = String(suggestion.dropFirst(shelfViewModel.searchText.count))
-                            
-                            (Text(prefix).foregroundColor(.clear) + Text(suffix).foregroundColor(.secondary.opacity(0.5)))
-                                .font(.system(.body, design: .monospaced))
-                                .allowsHitTesting(false)
-                        }
-                        
-                        TextField("Search history...", text: $shelfViewModel.searchText)
-                            .textFieldStyle(.plain)
-                            .font(.system(.body, design: .monospaced))
-                            .onKeyPress(.tab) {
-                                if let suggestion = shelfViewModel.suggestedCommand {
-                                    shelfViewModel.searchText = suggestion
-                                    return .handled
-                                }
-                                return .ignored
-                            }
-                    }
-                    
-                    // Visual Hint for Autocomplete
-                    if shelfViewModel.suggestedCommand != nil && !shelfViewModel.searchText.isEmpty {
-                        Text("TAB")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.1))
-                            .cornerRadius(4)
-                    }
-                }
-                .padding(10)
-                .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-                .cornerRadius(10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
-                )
-                .padding(12)
-                .background(.regularMaterial)
-                .zIndex(1) // Ensure it shadows content
+            HSplitView {
+                // Left: Main Content (Terminal)
+                TerminalViewWrapper(viewModel: shelfViewModel)
+                    .frame(minWidth: 400, minHeight: 300)
+                    .background(SwiftUI.Color(red: 0.16, green: 0.16, blue: 0.18)) // Match terminal bg
                 
-                Divider()
+                // Right: Sidebar (The Shelf)
+                VStack(spacing: 0) {
+                    // Search Bar Area (Themed)
+                    VStack(spacing: 0) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                            
+                            ZStack(alignment: .leading) {
+                                if let suggestion = shelfViewModel.suggestedCommand, 
+                                   !shelfViewModel.searchText.isEmpty,
+                                   suggestion.lowercased().hasPrefix(shelfViewModel.searchText.lowercased()) {
+                                    
+                                    let prefix = String(suggestion.prefix(shelfViewModel.searchText.count))
+                                    let suffix = String(suggestion.dropFirst(shelfViewModel.searchText.count))
+                                    
+                                    (Text(prefix).foregroundColor(SwiftUI.Color.clear) + Text(suffix).foregroundColor(SwiftUI.Color.white.opacity(0.4)))
+                                        .font(.system(.body, design: .monospaced))
+                                        .allowsHitTesting(false)
+                                }
+                                
+                                TextField("Search history...", text: $shelfViewModel.searchText)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundColor(.white)
+                                    .onKeyPress(.tab) {
+                                        if let suggestion = shelfViewModel.suggestedCommand {
+                                            shelfViewModel.searchText = suggestion
+                                            return .handled
+                                        }
+                                        return .ignored
+                                    }
+                            }
+                            
+                            if shelfViewModel.suggestedCommand != nil && !shelfViewModel.searchText.isEmpty {
+                                Text("TAB")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .background(SwiftUI.Color.white.opacity(0.2))
+                                    .cornerRadius(4)
+                            }
+                        }
+                        .padding(10)
+                        .background(SwiftUI.Color.black.opacity(0.15))
+                        .cornerRadius(8)
+                        .padding(12)
+                    }
+                    .background(SwiftUI.Color.dashbinPrimary)
+                    
+                    Divider()
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            if shelfViewModel.filteredCommands.isEmpty {
-                                VStack(spacing: 12) {
-                                    Spacer().frame(height: 40)
-                                    Image(systemName: "clock")
-                                        .font(.largeTitle)
-                                        .foregroundColor(.secondary.opacity(0.3))
-                                    Text("No history found")
-                                        .font(.callout)
-                                        .foregroundColor(.secondary)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                if shelfViewModel.filteredCommands.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Spacer().frame(height: 40)
+                                        Image(systemName: "clock")
+                                            .font(.largeTitle)
+                                            .foregroundColor(.secondary.opacity(0.3))
+                                        Text("No history found")
+                                            .font(.callout)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                } else {
+                                    ForEach(shelfViewModel.filteredCommands) { item in
+                                        CommandRowView(item: item, viewModel: shelfViewModel)
+                                            .id(item.id)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 8)
+                                    }
                                 }
-                                .frame(maxWidth: .infinity)
-                            } else {
-                                ForEach(shelfViewModel.filteredCommands) { item in
-                                    CommandRowView(item: item, viewModel: shelfViewModel)
-                                        .id(item.id)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.horizontal, 8) // Add some horizontal breathing room
+                            }
+                            .padding(.vertical, 8)
+                        }
+                        .onChange(of: shelfViewModel.commands) { _ in
+                            if shelfViewModel.searchText.isEmpty, let first = shelfViewModel.commands.first {
+                                withAnimation {
+                                    proxy.scrollTo(first.id, anchor: .top)
                                 }
                             }
                         }
-                        .padding(.vertical, 8)
                     }
-                    .onChange(of: shelfViewModel.commands) { _ in
-                        if shelfViewModel.searchText.isEmpty, let first = shelfViewModel.commands.first {
-                            // Using ScrollView, scrollTo works similarly
-                            withAnimation {
-                                proxy.scrollTo(first.id, anchor: .top)
-                            }
-                        }
-                    }
+                    .clipped()
                 }
-                .clipped()
+                .frame(minWidth: 250, maxWidth: 350)
+                .background(SwiftUI.Color(red: 0.07, green: 0.07, blue: 0.07)) // Dark Spotify-style Sidebar
             }
-            .frame(minWidth: 250, maxWidth: 350)
-            .background(.regularMaterial)
         }
     }
 }
@@ -134,7 +161,7 @@ struct CommandRowView: View {
                         .font(.system(.body, design: .monospaced))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     Spacer()
                 }
                 
@@ -146,10 +173,10 @@ struct CommandRowView: View {
                                 .foregroundColor(.green)
                         case .executed:
                             Label("Running", systemImage: "play.fill")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.white)
                         case .none:
                             Text(item.timestamp, style: .time)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.white.opacity(0.5))
                         }
                     }
                     .font(.caption2)
@@ -174,7 +201,7 @@ struct CommandRowView: View {
                 }) {
                     Image(systemName: "play.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.white)
                 }
                 .buttonStyle(.plain)
                 .transition(.scale.combined(with: .opacity))
@@ -183,7 +210,7 @@ struct CommandRowView: View {
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isHovering ? Color.primary.opacity(0.05) : Color.clear)
+                .fill(isHovering ? SwiftUI.Color.white.opacity(0.1) : SwiftUI.Color.clear)
         )
         .onHover { hover in
             withAnimation(.easeInOut(duration: 0.15)) {

@@ -45,7 +45,7 @@ struct DashbinApp: App {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }
         }
-        //.windowStyle(.hiddenTitleBar) // Commented out to debug visibility
+        //.windowStyle(.hiddenTitleBar) 
         .commands {
             // Optional: Add menu commands here if needed
             SidebarCommands() // Enable sidebar toggling
