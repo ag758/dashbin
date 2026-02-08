@@ -215,7 +215,6 @@ struct CommandRowView: View {
                         Image(systemName: "pin.circle.fill")
                             .font(.title) // Larger icon
                             .foregroundColor((item.isPinned ?? false) ? .dashbinAccent : .white.opacity(0.3))
-                            .rotationEffect((item.isPinned ?? false) ? .degrees(45) : .degrees(0))
                     }
                     .buttonStyle(.plain)
                     
