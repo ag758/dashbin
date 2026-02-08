@@ -21,7 +21,8 @@ let package = Package(
             path: ".", // Sources are in the root directory
             exclude: ["Dashbin.entitlements"],
             resources: [
-                .process("Dashbin.entitlements")
+                .process("Dashbin.entitlements"),
+                .process("Assets.xcassets")
             ]
         )
     ]

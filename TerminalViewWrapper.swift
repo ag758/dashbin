@@ -332,9 +332,6 @@ struct TerminalViewWrapper: NSViewRepresentable {
         // NSViewRepresentable context.coordinator is best for lifetime management.
         context.coordinator.setupSubscription(terminalView: terminalView)
         
-        // Configure typical terminal settings
-        terminalView.feed(text: "Welcome to Dashbin!\r\n")
-        
         // Configure shell environment variables with explicit user context
         var env = ProcessInfo.processInfo.environment
         let userName = NSUserName()
