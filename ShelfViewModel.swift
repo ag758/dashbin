@@ -5,6 +5,7 @@ struct CommandItem: Identifiable, Hashable, Codable {
     var id = UUID()
     let command: String
     var timestamp: Date = Date()
+    var isPinned: Bool? = false
 }
 
 import Combine
@@ -30,25 +31,37 @@ class ShelfViewModel: ObservableObject {
     @Published var searchText: String = ""
     
     var filteredCommands: [CommandItem] {
+        let baseList: [CommandItem]
+        
         if searchText.isEmpty {
-            return commands
-        }
-        
-        let query = searchText.lowercased()
-        
-        // Filter and sort by score
-        // We use a tuple to store score temporarily
-        let scored = commands.compactMap { item -> (CommandItem, Double)? in
-            if let score = fuzzyScore(item.command, query: query) {
-                return (item, score)
+            baseList = commands
+        } else {
+            let query = searchText.lowercased()
+            
+            // Filter and sort by score
+            // We use a tuple to store score temporarily
+            let scored = commands.compactMap { item -> (CommandItem, Double)? in
+                if let score = fuzzyScore(item.command, query: query) {
+                    return (item, score)
+                }
+                return nil
             }
-            return nil
+            
+            baseList = scored.sorted { $0.1 > $1.1 }.map { $0.0 }
         }
         
-        // Sort descending by score. If tied, keep original order (recency) by using the index difference? 
-        // Swift's sort is not stable, so let's try to be stable if we care. 
-        // For now, simple sort is fine, but maybe prefer shorter commands for ties?
-        return scored.sorted { $0.1 > $1.1 }.map { $0.0 }
+        // Sort pinned items to the top
+        return baseList.sorted { item1, item2 in
+            let pinned1 = item1.isPinned ?? false
+            let pinned2 = item2.isPinned ?? false
+            
+            if pinned1 == pinned2 {
+                // If both pinned or both unpinned, preserve original order (or score order)
+                // Since Swift's sort is stable, returning false keeps them as is.
+                return false
+            }
+            return pinned1 && !pinned2
+        }
     }
     
     var suggestedCommand: String? {
@@ -159,6 +172,24 @@ class ShelfViewModel: ObservableObject {
     }
     let commandAction = PassthroughSubject<TerminalAction, Never>()
     
+    // Toggle the pinned state of a command
+    func togglePin(id: UUID) {
+        if let index = commands.firstIndex(where: { $0.id == id }) {
+            var item = commands[index]
+            item.isPinned = !(item.isPinned ?? false)
+            commands[index] = item
+            saveCommands()
+        }
+    }
+
+    // Delete a command by ID
+    func deleteCommand(id: UUID) {
+        if let index = commands.firstIndex(where: { $0.id == id }) {
+            commands.remove(at: index)
+            saveCommands()
+        }
+    }
+
     // Add a unique command to the shelf
     func addCommand(_ command: String) {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)

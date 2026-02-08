@@ -28,6 +28,7 @@ extension SwiftUI.Color {
     }
     
     static let dashbinPrimary = SwiftUI.Color(hex: "172884")
+    static let dashbinAccent = SwiftUI.Color(hex: "00F5FF")
 }
 
 struct ContentView: View {
@@ -157,6 +158,12 @@ struct CommandRowView: View {
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
+                    if item.isPinned == true {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundColor(.dashbinAccent)
+                            .rotationEffect(.degrees(45))
+                    }
                     Text(item.command)
                         .font(.system(.body, design: .monospaced))
                         .lineLimit(1)
@@ -195,15 +202,40 @@ struct CommandRowView: View {
             
             // Actions (Visible on Hover)
             if isHovering {
-                Button(action: {
-                    viewModel.triggerRun(item.command)
-                    triggerFeedback(.executed)
-                }) {
-                    Image(systemName: "play.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.white)
+                HStack(spacing: 8) {
+                    Button(action: {
+                        withAnimation {
+                             viewModel.togglePin(id: item.id)
+                        }
+                    }) {
+                        Image(systemName: "pin.circle.fill")
+                            .font(.title) // Larger icon
+                            .foregroundColor((item.isPinned ?? false) ? .dashbinAccent : .white.opacity(0.3))
+                            .rotationEffect((item.isPinned ?? false) ? .degrees(45) : .degrees(0))
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button(action: {
+                        withAnimation {
+                            viewModel.deleteCommand(id: item.id)
+                        }
+                    }) {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.title) // Larger icon
+                            .foregroundColor(.white.opacity(0.3))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        viewModel.triggerRun(item.command)
+                        triggerFeedback(.executed)
+                    }) {
+                        Image(systemName: "play.circle.fill")
+                            .font(.title) // Larger icon
+                            .foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 .transition(.scale.combined(with: .opacity))
             }
         }
@@ -212,6 +244,29 @@ struct CommandRowView: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(isHovering ? SwiftUI.Color.white.opacity(0.1) : SwiftUI.Color.clear)
         )
+        .contextMenu {
+            Button {
+                withAnimation {
+                    viewModel.togglePin(id: item.id)
+                }
+            } label: {
+                Label((item.isPinned ?? false) ? "Unpin" : "Pin", systemImage: "pin")
+            }
+            
+            Button(role: .destructive) {
+                withAnimation {
+                    viewModel.deleteCommand(id: item.id)
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            
+            Button {
+                viewModel.copyCommand(item.command)
+            } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+        }
         .onHover { hover in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hover
