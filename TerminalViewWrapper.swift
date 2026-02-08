@@ -35,7 +35,10 @@ class GhostTextView: NSView {
         let yOffset = CGFloat(1.5)
         
         let availableOnFirstLine = max(0, terminalCols - cursorCol)
-        var currentText = text
+        
+        // Replace spaces with non-breaking spaces to ensure leading whitespace is visible/drawn
+        let displayText = text.replacingOccurrences(of: " ", with: "\u{00a0}")
+        var currentText = displayText
         var currentRow: Int = 0
         
         // Draw first line starting at cursorCol
@@ -104,7 +107,7 @@ class InteractiveTerminalView: LocalProcessTerminalView {
         super.send(source: source, data: data)
         
         if data.contains(13) {
-             if let cmd = extractCurrentCommand() {
+             if let cmd = extractCurrentCommand(restrictToCursor: false) {
                  onReturnPressed?(cmd)
              }
         }
@@ -117,13 +120,37 @@ class InteractiveTerminalView: LocalProcessTerminalView {
     private func updateGhostText() {
         guard let viewModel = viewModel else { return }
         
-        guard let cmd = extractCurrentCommand() else {
+        guard let cmd = extractCurrentCommand(restrictToCursor: true) else {
             clearGhost()
             return
         }
         
-        if let suggestion = viewModel.suggestion(for: cmd), suggestion != cmd {
+        if let suggestion = viewModel.suggestion(for: cmd.trimmingCharacters(in: .whitespacesAndNewlines)), suggestion != cmd {
             self.currentSuggestion = suggestion
+            
+            // We need to figure out what part of the suggestion to show.
+            // If the user typed "cd ", and suggestion is "cd ~/desktop",
+            // cmd is "cd ". suggestion is "cd ~/desktop".
+            // we want to show "~/desktop" starting at cursorCol.
+            
+            // However, our suggestion search might match "cd" to "cd ~/desktop" 
+            // but the user typed invalid spaces "cd  ".
+            // So we need to be careful.
+            
+            // Simple logic:
+            // 1. check if suggestion technically starts with trimmed cmd?
+            // Already done in viewModel.suggestion usually.
+            
+            // 2. We want to draw the REST of the suggestion.
+            // But if the user typed extra spaces that are NOT in the suggestion, we can't really suggest.
+            // E.g. user typed "git  ", suggestion "git status". 
+            // The user has gone off-path. 
+            
+            // Let's rely on string prefix check.
+            if !suggestion.hasPrefix(cmd) {
+                clearGhost()
+                return
+            }
             
             let suffix = String(suggestion.dropFirst(cmd.count))
             if suffix.isEmpty {
@@ -203,10 +230,11 @@ class InteractiveTerminalView: LocalProcessTerminalView {
         ghostView.needsDisplay = true
     }
     
-    private func extractCurrentCommand() -> String? {
+    private func extractCurrentCommand(restrictToCursor: Bool = false) -> String? {
+        let cursorX = self.terminal.buffer.x
+        let cursorY = self.terminal.buffer.y
         let mirror = Mirror(reflecting: self.terminal.buffer)
         let yBase = mirror.descendant("_yBase") as? Int ?? (mirror.descendant("yBase") as? Int ?? 0)
-        let cursorY = self.terminal.buffer.y
         let absY = cursorY + yBase
         
         func getCommand(at row: Int) -> String? {
@@ -228,8 +256,22 @@ class InteractiveTerminalView: LocalProcessTerminalView {
             var combined = ""
             for y in startRow...row {
                 guard let line = self.terminal.getScrollInvariantLine(row: y) else { continue }
-                combined.append(line.translateToString(trimRight: true))
+                
+                // If we restrict to cursor, we want RAW text (no right trim) so we can slice exactly
+                // Otherwise we trim right (default/legacy behavior)
+                var lineStr = line.translateToString(trimRight: !restrictToCursor)
+                
+                if restrictToCursor && y == absY {
+                     // Check bounds and truncate to cursor position
+                     // This ensures we don't accidentally pick up "deleted" characters if the buffer hasn't cleared them yet
+                     let safeCount = min(cursorX, lineStr.count)
+                     lineStr = String(lineStr.prefix(safeCount))
+                }
+                
+                combined.append(lineStr)
             }
+            
+            // If restrictToCursor is true, combined now ends exactly at cursor.
             
             let lineString = combined
             if lineString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -243,14 +285,22 @@ class InteractiveTerminalView: LocalProcessTerminalView {
                 let matches = regex.matches(in: lineString, options: [], range: NSRange(location: 0, length: nsString.length))
                 if let lastMatch = matches.last {
                     let afterPrompt = nsString.substring(from: lastMatch.range.location + lastMatch.range.length)
-                    let candidate = afterPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+                    // Trim only leading whitespace to preserve trailing spaces (cursor position)
+                    var candidate = afterPrompt
+                    if let range = candidate.range(of: "^\\s+", options: .regularExpression) {
+                        candidate.removeSubrange(range)
+                    }
+                    
                     // If we found a prompt but there's nothing after it, this is an empty command
                     return candidate.isEmpty ? nil : candidate
                 }
             }
             
             // Fallback only if no prompt was detected at all
-            let trimmedFallback = lineString.trimmingCharacters(in: .whitespacesAndNewlines)
+            var trimmedFallback = lineString
+            if let range = trimmedFallback.range(of: "^\\s+", options: .regularExpression) {
+                trimmedFallback.removeSubrange(range)
+            }
             return trimmedFallback.isEmpty ? nil : trimmedFallback
         }
         
@@ -260,7 +310,12 @@ class InteractiveTerminalView: LocalProcessTerminalView {
         }
         
         // If current line is empty, the shell might have moved down already. Try the line above.
-        return getCommand(at: absY - 1)
+        // We only use fallback for full extraction (e.g. Enter pressed), not ghost text
+        if !restrictToCursor {
+            return getCommand(at: absY - 1)
+        }
+        
+        return nil
     }
 }
 

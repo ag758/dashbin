@@ -62,7 +62,11 @@ struct ContentView: View {
                                     let prefix = String(suggestion.prefix(shelfViewModel.searchText.count))
                                     let suffix = String(suggestion.dropFirst(shelfViewModel.searchText.count))
                                     
-                                    (Text(prefix).foregroundColor(SwiftUI.Color.clear) + Text(suffix).foregroundColor(SwiftUI.Color.white.opacity(0.4)))
+                                    // Use non-breaking spaces to preserve whitespace width
+                                    let displayPrefix = prefix.replacingOccurrences(of: " ", with: "\u{00a0}")
+                                    let displaySuffix = suffix.replacingOccurrences(of: " ", with: "\u{00a0}")
+                                    
+                                    (Text(displayPrefix).foregroundColor(SwiftUI.Color.clear) + Text(displaySuffix).foregroundColor(SwiftUI.Color.white.opacity(0.4)))
                                         .font(.system(.body, design: .monospaced))
                                         .allowsHitTesting(false)
                                 }
