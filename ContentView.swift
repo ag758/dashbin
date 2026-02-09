@@ -128,8 +128,8 @@ struct ContentView: View {
                             }
                             .padding(.vertical, 8)
                         }
-                        .onChange(of: shelfViewModel.commands) { _ in
-                            if shelfViewModel.searchText.isEmpty, let first = shelfViewModel.commands.first {
+                        .onChange(of: shelfViewModel.commands) { oldValue, newValue in // Update: Two parameters
+                            if shelfViewModel.searchText.isEmpty, let first = newValue.first {
                                 withAnimation {
                                     proxy.scrollTo(first.id, anchor: .top)
                                 }
