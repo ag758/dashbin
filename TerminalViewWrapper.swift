@@ -416,11 +416,43 @@ struct TerminalViewWrapper: NSViewRepresentable {
         // This implicitly launches the default shell (zsh) with the context initialized
         terminalView.startProcess(executable: "/usr/bin/login", args: ["-f", "-p", userName], environment: envStrings)
         
-        // Theme (Midnight/Dracula-ish)
-        // SwiftTerm has built-in themes but we can set colors manually or check if `apply(theme:)` is available
-        // For safety, we'll set basic colors manually mimicking Dracula if standard init doesn't cover it.
-        terminalView.nativeBackgroundColor = NSColor(red: 0.16, green: 0.16, blue: 0.18, alpha: 1.0) // Dark background
-        terminalView.nativeForegroundColor = NSColor.white
+        // Theme (Dashbin Modern)
+        // Background: Deep, rich dark blue/grey
+        terminalView.nativeBackgroundColor = NSColor(hex: "1E1E22") 
+        terminalView.nativeForegroundColor = NSColor(hex: "F8F8F2")
+        // terminalView.nativeCursorColor = NSColor(hex: "00F5FF") // Accent Cyan
+        // terminalView.nativeSelectionColor = NSColor(hex: "44475A")
+        
+        // ANSI Colors (0-15)
+        // Tuned for high contrast and modern aesthetics
+        let ansiColors: [NSColor] = [
+            NSColor(hex: "21222C"), // Black
+            NSColor(hex: "FF5555"), // Red (Bright/Salmon for readability)
+            NSColor(hex: "50FA7B"), // Green
+            NSColor(hex: "F1FA8C"), // Yellow
+            NSColor(hex: "BD93F9"), // Blue (Dracula-ish purple-blue)
+            NSColor(hex: "FF79C6"), // Magenta
+            NSColor(hex: "8BE9FD"), // Cyan
+            NSColor(hex: "F8F8F2"), // White
+            
+            NSColor(hex: "6272A4"), // Bright Black
+            NSColor(hex: "FF6E6E"), // Bright Red
+            NSColor(hex: "69FF94"), // Bright Green
+            NSColor(hex: "FFFFA5"), // Bright Yellow
+            NSColor(hex: "D6ACFF"), // Bright Blue
+            NSColor(hex: "FF92DF"), // Bright Magenta
+            NSColor(hex: "A4FFFF"), // Bright Cyan
+            NSColor(hex: "FFFFFF")  // Bright White
+        ]
+        
+        func toTermColor(_ color: NSColor) -> SwiftTerm.Color {
+            guard let converted = color.usingColorSpace(.sRGB) else { return SwiftTerm.Color(red: 0, green: 0, blue: 0) }
+            return SwiftTerm.Color(red: UInt16(converted.redComponent * 65535),
+                                   green: UInt16(converted.greenComponent * 65535),
+                                   blue: UInt16(converted.blueComponent * 65535))
+        }
+
+        terminalView.installColors(ansiColors.map(toTermColor))
         
         // Set the callback
         // Note: extractCurrentCommand() already strips the prompt, so we just use the command directly
@@ -457,19 +489,38 @@ struct TerminalViewWrapper: NSViewRepresentable {
                 .sink { action in
                     switch action {
                     case .run(let cmd):
-                        // Send command + newline
-                        // We convert String to [UInt8] for send(data:) or use feed(text:) which handles string
-                        // BUT feed() goes to the *screen*, send() goes to the *process*.
-                        // We must use send() to simulate input.
-                        // SwiftTerm send(text:) exists on TerminalView (the superclass).
                         terminalView.send(txt: cmd + "\n")
                         
                     case .paste(let cmd):
-                        // Send just command
                         terminalView.send(txt: cmd)
                     }
                 }
                 .store(in: &cancellables)
         }
+    }
+}
+
+extension NSColor {
+    convenience init(hex: String) {
+        var cString: String = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        if (cString.hasPrefix("#")) {
+            cString.remove(at: cString.startIndex)
+        }
+
+        if ((cString.count) != 6) {
+            self.init(srgbRed: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
+            return
+        }
+
+        var rgbValue: UInt64 = 0
+        Scanner(string: cString).scanHexInt64(&rgbValue)
+
+        self.init(
+            srgbRed: CGFloat((rgbValue & 0xFF0000) >> 16) / 255.0,
+            green: CGFloat((rgbValue & 0x00FF00) >> 8) / 255.0,
+            blue: CGFloat(rgbValue & 0x0000FF) / 255.0,
+            alpha: CGFloat(1.0)
+        )
     }
 }
