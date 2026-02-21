@@ -230,9 +230,9 @@ struct CommandRowView: View {
                             viewModel.removeCommandFromFolder(commandId: item.id, folderId: folderId)
                         }
                     }) {
-                        Image(systemName: "minus.circle.fill")
+                        Image(systemName: "trash.circle.fill")
                             .font(.title) // Larger icon
-                            .foregroundColor(.red.opacity(0.8))
+                            .foregroundColor(.white.opacity(0.3))
                     }
                     .buttonStyle(.plain)
                 } else {
@@ -337,33 +337,64 @@ struct FolderView: View {
     let folder: CommandFolder
     @ObservedObject var viewModel: ShelfViewModel
     @State private var isExpanded: Bool = false
+    @State private var isHovering = false
     
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            ForEach(folder.commands) { item in
-                CommandRowView(item: item, viewModel: viewModel, folderId: folder.id)
-                    .padding(.horizontal, 8)
-            }
-        } label: {
+        VStack(spacing: 0) {
             HStack {
-                Image(systemName: "folder.fill")
-                    .foregroundColor(.dashbinAccent)
                 Text(folder.name)
                     .font(.system(.body, weight: .bold))
                     .foregroundColor(.white)
                 Spacer()
-                Button(action: {
-                    withAnimation {
-                        viewModel.deleteFolder(id: folder.id)
+                
+                HStack(spacing: 8) {
+                    Text("\(folder.commands.count)")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.trailing, 2)
+                        
+                    Button(action: {
+                        withAnimation {
+                            viewModel.deleteFolder(id: folder.id)
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.3))
                     }
-                }) {
-                    Image(systemName: "trash")
-                        .foregroundColor(.white.opacity(0.5))
+                    .buttonStyle(.plain)
+                    .opacity(isHovering ? 1 : 0)
+                    .allowsHitTesting(isHovering)
                 }
-                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isHovering ? SwiftUI.Color.white.opacity(0.1) : (isExpanded ? SwiftUI.Color.white.opacity(0.05) : SwiftUI.Color.clear))
+            )
+            .onHover { hover in
+                isHovering = hover
+            }
+            .onTapGesture {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded.toggle()
+                }
+            }
+            
+            if isExpanded {
+                VStack(spacing: 0) {
+                    ForEach(folder.commands) { item in
+                        CommandRowView(item: item, viewModel: viewModel, folderId: folder.id)
+                            .padding(.horizontal, 8)
+                    }
+                }
+                .padding(.leading, 8)
+                .padding(.top, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
+        .padding(.horizontal, 4)
     }
 }
