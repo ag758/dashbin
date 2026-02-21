@@ -190,80 +190,90 @@ struct CommandRowView: View {
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    if isEditing {
-                        TextField("Command", text: $editedCommand)
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundColor(.white)
-                            .textFieldStyle(.plain)
-                            .focused($isFocused)
-                            .onSubmit {
-                                submitEdit()
-                            }
-                            .onExitCommand {
-                                isEditing = false
-                            }
-                            .onChange(of: isFocused) {
-                                if !isFocused && isEditing {
-                                    submitEdit()
-                                }
-                            }
-                    } else {
-                        Text(item.command)
-                            .font(.system(.body, design: .monospaced))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .foregroundColor(.white)
-                    }
+                    Text(item.command)
+                        .font(.system(.body, design: .monospaced))
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                        .foregroundColor(.white)
                     Spacer()
                 }
                 
-                HStack {
-                    Group {
-                        switch feedbackState {
-                        case .copied:
-                            Label("Copied", systemImage: "checkmark")
-                                .foregroundColor(.green)
-                        case .executed:
-                            Label("Running", systemImage: "play.fill")
-                                .foregroundColor(.white)
-                        case .none:
-                            Text(item.timestamp, style: .time)
-                                .foregroundColor(.white.opacity(0.5))
+                if feedbackState != .none {
+                    HStack {
+                        Group {
+                            if feedbackState == .copied {
+                                Label("Copied", systemImage: "checkmark")
+                                    .foregroundColor(.green)
+                            } else if feedbackState == .executed {
+                                Label("Running", systemImage: "play.fill")
+                                    .foregroundColor(.white)
+                            }
                         }
+                        .font(.caption2)
+                        .transition(.opacity)
+                        
+                        Spacer()
                     }
-                    .font(.caption2)
-                    .transition(.opacity)
-                    
-                    Spacer()
                 }
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
             .contentShape(Rectangle()) 
             .onTapGesture {
-                if !isEditing {
-                    viewModel.copyCommand(item.command)
-                    triggerFeedback(.copied)
-                }
+                viewModel.copyCommand(item.command)
+                triggerFeedback(.copied)
             }
             
             // Actions (Visible on Hover)
             HStack(spacing: 8) {
-                if !isEditing {
-                    Button(action: {
-                        editedCommand = item.command
-                        withAnimation {
-                            isEditing = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                isFocused = true
-                            }
-                        }
-                    }) {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white.opacity(0.8))
+                Button(action: {
+                    editedCommand = item.command
+                    isEditing = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isFocused = true
                     }
-                    .buttonStyle(.plain)
+                }) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $isEditing, arrowEdge: .leading) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Edit Command")
+                            .font(.headline)
+                        TextField("Command", text: $editedCommand, axis: .vertical)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(minWidth: 250, minHeight: 100, alignment: .topLeading)
+                            .focused($isFocused)
+                            .autocorrectionDisabled()
+                            .onChange(of: editedCommand) {
+                                let fixed = editedCommand
+                                    .replacingOccurrences(of: "“", with: "\"")
+                                    .replacingOccurrences(of: "”", with: "\"")
+                                    .replacingOccurrences(of: "‘", with: "'")
+                                    .replacingOccurrences(of: "’", with: "'")
+                                    .replacingOccurrences(of: "—", with: "--")
+                                if fixed != editedCommand {
+                                    editedCommand = fixed
+                                }
+                            }
+                        HStack {
+                            Spacer()
+                            Button("Cancel") {
+                                isEditing = false
+                            }
+                            .keyboardShortcut(.escape, modifiers: [])
+                            
+                            Button("Save") {
+                                submitEdit()
+                            }
+                            .keyboardShortcut(.defaultAction)
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .padding()
+                    .frame(width: 300)
                 }
                 if let folderId = folderId {
                     Button(action: {
@@ -415,6 +425,17 @@ struct FolderView: View {
                         .onChange(of: isFocused) {
                             if !isFocused && isEditing {
                                 submitRename()
+                            }
+                        }
+                        .autocorrectionDisabled()
+                        .onChange(of: editedName) {
+                            let fixed = editedName
+                                .replacingOccurrences(of: "“", with: "\"")
+                                .replacingOccurrences(of: "”", with: "\"")
+                                .replacingOccurrences(of: "‘", with: "'")
+                                .replacingOccurrences(of: "’", with: "'")
+                            if fixed != editedName {
+                                editedName = fixed
                             }
                         }
                 } else {
