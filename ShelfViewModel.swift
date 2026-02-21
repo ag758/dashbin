@@ -195,6 +195,17 @@ class ShelfViewModel: ObservableObject {
         }
     }
     
+    func renameFolder(id: UUID, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        DispatchQueue.main.async {
+            if let idx = self.folders.firstIndex(where: { $0.id == id }) {
+                self.folders[idx].name = trimmed
+                self.saveFolders()
+            }
+        }
+    }
+    
     func addCommandToFolder(_ command: CommandItem, folderId: UUID) {
         DispatchQueue.main.async {
             if let idx = self.folders.firstIndex(where: { $0.id == folderId }) {

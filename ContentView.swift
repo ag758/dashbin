@@ -338,13 +338,40 @@ struct FolderView: View {
     @ObservedObject var viewModel: ShelfViewModel
     @State private var isExpanded: Bool = false
     @State private var isHovering = false
+    @State private var showingDeleteAlert = false
+    
+    @State private var isEditing = false
+    @State private var editedName = ""
+    @FocusState private var isFocused: Bool
     
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(folder.name)
-                    .font(.system(.body, weight: .bold))
-                    .foregroundColor(.white)
+                Image(systemName: "folder")
+                    .foregroundColor(.white.opacity(0.5))
+                    
+                if isEditing {
+                    TextField("Folder Name", text: $editedName)
+                        .font(.system(.body, weight: .bold))
+                        .foregroundColor(.white)
+                        .textFieldStyle(.plain)
+                        .focused($isFocused)
+                        .onSubmit {
+                            submitRename()
+                        }
+                        .onExitCommand {
+                            isEditing = false
+                        }
+                        .onChange(of: isFocused) {
+                            if !isFocused && isEditing {
+                                submitRename()
+                            }
+                        }
+                } else {
+                    Text(folder.name)
+                        .font(.system(.body, weight: .bold))
+                        .foregroundColor(.white)
+                }
                 Spacer()
                 
                 HStack(spacing: 8) {
@@ -353,10 +380,27 @@ struct FolderView: View {
                         .foregroundColor(.white.opacity(0.4))
                         .padding(.trailing, 2)
                         
-                    Button(action: {
-                        withAnimation {
-                            viewModel.deleteFolder(id: folder.id)
+                    if !isEditing {
+                        Button(action: {
+                            editedName = folder.name
+                            withAnimation {
+                                isEditing = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    isFocused = true
+                                }
+                            }
+                        }) {
+                            Image(systemName: "pencil")
+                                .font(.title3)
+                                .foregroundColor(.white.opacity(0.6))
                         }
+                        .buttonStyle(.plain)
+                        .opacity(isHovering ? 1 : 0)
+                        .allowsHitTesting(isHovering)
+                    }
+                        
+                    Button(action: {
+                        showingDeleteAlert = true
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title2)
@@ -378,8 +422,10 @@ struct FolderView: View {
                 isHovering = hover
             }
             .onTapGesture {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isExpanded.toggle()
+                if !isEditing {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isExpanded.toggle()
+                    }
                 }
             }
             
@@ -392,9 +438,29 @@ struct FolderView: View {
                 }
                 .padding(.leading, 8)
                 .padding(.top, 4)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .clipped()
+                .transition(.opacity)
             }
         }
         .padding(.horizontal, 4)
+        .alert("Delete Folder", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                withAnimation {
+                    viewModel.deleteFolder(id: folder.id)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this folder? All commands inside will be removed.")
+        }
+    }
+    
+    private func submitRename() {
+        if editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            isEditing = false
+            return
+        }
+        viewModel.renameFolder(id: folder.id, newName: editedName)
+        isEditing = false
     }
 }
