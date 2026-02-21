@@ -181,16 +181,39 @@ struct CommandRowView: View {
     @State private var feedbackState: FeedbackState = .none
     @State private var isHovering = false
     
+    @State private var isEditing = false
+    @State private var editedCommand = ""
+    @FocusState private var isFocused: Bool
+    
     var body: some View {
         HStack {
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(item.command)
-                        .font(.system(.body, design: .monospaced))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .foregroundColor(.white)
+                    if isEditing {
+                        TextField("Command", text: $editedCommand)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.white)
+                            .textFieldStyle(.plain)
+                            .focused($isFocused)
+                            .onSubmit {
+                                submitEdit()
+                            }
+                            .onExitCommand {
+                                isEditing = false
+                            }
+                            .onChange(of: isFocused) {
+                                if !isFocused && isEditing {
+                                    submitEdit()
+                                }
+                            }
+                    } else {
+                        Text(item.command)
+                            .font(.system(.body, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .foregroundColor(.white)
+                    }
                     Spacer()
                 }
                 
@@ -218,12 +241,30 @@ struct CommandRowView: View {
             .padding(.horizontal, 8)
             .contentShape(Rectangle()) 
             .onTapGesture {
-                viewModel.copyCommand(item.command)
-                triggerFeedback(.copied)
+                if !isEditing {
+                    viewModel.copyCommand(item.command)
+                    triggerFeedback(.copied)
+                }
             }
             
             // Actions (Visible on Hover)
             HStack(spacing: 8) {
+                if !isEditing {
+                    Button(action: {
+                        editedCommand = item.command
+                        withAnimation {
+                            isEditing = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                isFocused = true
+                            }
+                        }
+                    }) {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                }
                 if let folderId = folderId {
                     Button(action: {
                         withAnimation {
@@ -313,6 +354,15 @@ struct CommandRowView: View {
         .onHover { hover in
             isHovering = hover
         }
+    }
+    
+    private func submitEdit() {
+        if editedCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            isEditing = false
+            return
+        }
+        viewModel.editCommand(id: item.id, newCommand: editedCommand, folderId: folderId)
+        isEditing = false
     }
     
     private func triggerFeedback(_ state: FeedbackState) {

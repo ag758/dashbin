@@ -3,7 +3,7 @@ import AppKit
 
 struct CommandItem: Identifiable, Hashable, Codable {
     var id = UUID()
-    let command: String
+    var command: String
     var timestamp: Date = Date()
     var isPinned: Bool? = false
 }
@@ -237,6 +237,26 @@ class ShelfViewModel: ObservableObject {
         if let index = commands.firstIndex(where: { $0.id == id }) {
             commands.remove(at: index)
             saveCommands()
+        }
+    }
+
+    func editCommand(id: UUID, newCommand: String, folderId: UUID? = nil) {
+        let trimmed = newCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        DispatchQueue.main.async {
+            if let fId = folderId {
+                if let fIdx = self.folders.firstIndex(where: { $0.id == fId }) {
+                    if let cIdx = self.folders[fIdx].commands.firstIndex(where: { $0.id == id }) {
+                        self.folders[fIdx].commands[cIdx].command = trimmed
+                        self.saveFolders()
+                    }
+                }
+            } else {
+                if let cIdx = self.commands.firstIndex(where: { $0.id == id }) {
+                    self.commands[cIdx].command = trimmed
+                    self.saveCommands()
+                }
+            }
         }
     }
 
