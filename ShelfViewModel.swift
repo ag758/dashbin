@@ -8,10 +8,17 @@ struct CommandItem: Identifiable, Hashable, Codable {
     var isPinned: Bool? = false
 }
 
+struct CommandFolder: Identifiable, Hashable, Codable {
+    var id = UUID()
+    var name: String
+    var commands: [CommandItem] = []
+}
+
 import Combine
 
 class ShelfViewModel: ObservableObject {
     @Published var commands: [CommandItem] = []
+    @Published var folders: [CommandFolder] = []
     
     private var persistenceURL: URL? {
         guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
@@ -22,9 +29,19 @@ class ShelfViewModel: ObservableObject {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder.appendingPathComponent("history.json")
     }
+
+    private var foldersURL: URL? {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let folder = appSupport.appendingPathComponent("dashbin")
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent("folders.json")
+    }
     
     init() {
         loadCommands()
+        loadFolders()
     }
     
     // MARK: - Search
@@ -50,18 +67,8 @@ class ShelfViewModel: ObservableObject {
             baseList = scored.sorted { $0.1 > $1.1 }.map { $0.0 }
         }
         
-        // Sort pinned items to the top
-        return baseList.sorted { item1, item2 in
-            let pinned1 = item1.isPinned ?? false
-            let pinned2 = item2.isPinned ?? false
-            
-            if pinned1 == pinned2 {
-                // If both pinned or both unpinned, preserve original order (or score order)
-                // Since Swift's sort is stable, returning false keeps them as is.
-                return false
-            }
-            return pinned1 && !pinned2
-        }
+        // Return baseList directly, folders handle groupings now
+        return baseList
     }
     
     var suggestedCommand: String? {
@@ -172,13 +179,41 @@ class ShelfViewModel: ObservableObject {
     }
     let commandAction = PassthroughSubject<TerminalAction, Never>()
     
-    // Toggle the pinned state of a command
-    func togglePin(id: UUID) {
-        if let index = commands.firstIndex(where: { $0.id == id }) {
-            var item = commands[index]
-            item.isPinned = !(item.isPinned ?? false)
-            commands[index] = item
-            saveCommands()
+    func createFolder(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        DispatchQueue.main.async {
+            self.folders.insert(CommandFolder(name: trimmed), at: 0)
+            self.saveFolders()
+        }
+    }
+    
+    func deleteFolder(id: UUID) {
+        DispatchQueue.main.async {
+            self.folders.removeAll { $0.id == id }
+            self.saveFolders()
+        }
+    }
+    
+    func addCommandToFolder(_ command: CommandItem, folderId: UUID) {
+        DispatchQueue.main.async {
+            if let idx = self.folders.firstIndex(where: { $0.id == folderId }) {
+                if !self.folders[idx].commands.contains(where: { $0.command == command.command }) {
+                    var newItem = command
+                    newItem.id = UUID()
+                    self.folders[idx].commands.insert(newItem, at: 0)
+                    self.saveFolders()
+                }
+            }
+        }
+    }
+    
+    func removeCommandFromFolder(commandId: UUID, folderId: UUID) {
+        DispatchQueue.main.async {
+            if let idx = self.folders.firstIndex(where: { $0.id == folderId }) {
+                self.folders[idx].commands.removeAll { $0.id == commandId }
+                self.saveFolders()
+            }
         }
     }
 
@@ -237,6 +272,28 @@ class ShelfViewModel: ObservableObject {
     }
     
     // MARK: - Persistence
+    
+    private func loadFolders() {
+        guard let url = foldersURL,
+              let data = try? Data(contentsOf: url) else { return }
+        do {
+            self.folders = try JSONDecoder().decode([CommandFolder].self, from: data)
+        } catch {
+            print("Failed to load folders: \(error)")
+        }
+    }
+    
+    private func saveFolders() {
+        guard let url = foldersURL else { return }
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .prettyPrinted
+            let data = try encoder.encode(folders)
+            try data.write(to: url)
+        } catch {
+            print("Failed to save folders: \(error)")
+        }
+    }
     
     private func loadCommands() {
         guard let url = persistenceURL,

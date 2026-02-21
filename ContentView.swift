@@ -33,6 +33,8 @@ extension SwiftUI.Color {
 
 struct ContentView: View {
     @StateObject private var shelfViewModel = ShelfViewModel()
+    @State private var showingNewFolderAlert = false
+    @State private var newFolderName = ""
     
     var body: some View {
         VStack(spacing: 0) {
@@ -93,6 +95,15 @@ struct ContentView: View {
                                     .background(SwiftUI.Color.white.opacity(0.2))
                                     .cornerRadius(4)
                             }
+                            
+                            Button(action: {
+                                showingNewFolderAlert = true
+                            }) {
+                                Image(systemName: "folder.badge.plus")
+                                    .foregroundColor(.white)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.leading, 4)
                         }
                         .padding(10)
                         .background(SwiftUI.Color.black.opacity(0.15))
@@ -106,6 +117,13 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
+                                if !shelfViewModel.folders.isEmpty {
+                                    ForEach(shelfViewModel.folders) { folder in
+                                        FolderView(folder: folder, viewModel: shelfViewModel)
+                                    }
+                                    Divider().padding(.vertical, 8)
+                                }
+                                
                                 if shelfViewModel.filteredCommands.isEmpty {
                                     VStack(spacing: 12) {
                                         Spacer().frame(height: 40)
@@ -131,7 +149,19 @@ struct ContentView: View {
                     }
                     .clipped()
                 }
-                .frame(minWidth: 250, maxWidth: 350)
+                                .frame(minWidth: 250, maxWidth: 350)
+                .alert("New Folder", isPresented: $showingNewFolderAlert) {
+                    TextField("Folder Name", text: $newFolderName)
+                    Button("Cancel", role: .cancel) {
+                        newFolderName = ""
+                    }
+                    Button("Create") {
+                        shelfViewModel.createFolder(name: newFolderName)
+                        newFolderName = ""
+                    }
+                } message: {
+                    Text("Enter a name for the new folder.")
+                }
                 .background(SwiftUI.Color(red: 0.07, green: 0.07, blue: 0.07)) // Dark Spotify-style Sidebar
             }
         }
@@ -141,6 +171,7 @@ struct ContentView: View {
 struct CommandRowView: View {
     let item: CommandItem
     @ObservedObject var viewModel: ShelfViewModel
+    var folderId: UUID? = nil
     
     enum FeedbackState {
         case none
@@ -155,12 +186,6 @@ struct CommandRowView: View {
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    if item.isPinned == true {
-                        Image(systemName: "pin.fill")
-                            .font(.caption2)
-                            .foregroundColor(.dashbinAccent)
-                            .rotationEffect(.degrees(45))
-                    }
                     Text(item.command)
                         .font(.system(.body, design: .monospaced))
                         .lineLimit(1)
@@ -198,18 +223,36 @@ struct CommandRowView: View {
             }
             
             // Actions (Visible on Hover)
-            if isHovering {
-                HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                if let folderId = folderId {
                     Button(action: {
                         withAnimation {
-                             viewModel.togglePin(id: item.id)
+                            viewModel.removeCommandFromFolder(commandId: item.id, folderId: folderId)
                         }
                     }) {
-                        Image(systemName: "pin.circle.fill")
+                        Image(systemName: "minus.circle.fill")
                             .font(.title) // Larger icon
-                            .foregroundColor((item.isPinned ?? false) ? .dashbinAccent : .white.opacity(0.3))
+                            .foregroundColor(.red.opacity(0.8))
                     }
                     .buttonStyle(.plain)
+                } else {
+                    Menu {
+                        if viewModel.folders.isEmpty {
+                            Text("No folders available")
+                        } else {
+                            ForEach(viewModel.folders) { folder in
+                                Button(folder.name) {
+                                    viewModel.addCommandToFolder(item, folderId: folder.id)
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
                     
                     Button(action: {
                         withAnimation {
@@ -221,40 +264,44 @@ struct CommandRowView: View {
                             .foregroundColor(.white.opacity(0.3))
                     }
                     .buttonStyle(.plain)
-
-                    Button(action: {
-                        viewModel.triggerRun(item.command)
-                        triggerFeedback(.executed)
-                    }) {
-                        Image(systemName: "play.circle.fill")
-                            .font(.title) // Larger icon
-                            .foregroundColor(.white)
-                    }
-                    .buttonStyle(.plain)
                 }
-                .transition(.scale.combined(with: .opacity))
+
+                Button(action: {
+                    viewModel.triggerRun(item.command)
+                    triggerFeedback(.executed)
+                }) {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title) // Larger icon
+                        .foregroundColor(.white)
+                }
+                .buttonStyle(.plain)
             }
+            .opacity(isHovering ? 1 : 0)
+            .allowsHitTesting(isHovering)
         }
         .padding(4)
+        .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(isHovering ? SwiftUI.Color.white.opacity(0.1) : SwiftUI.Color.clear)
         )
         .contextMenu {
-            Button {
-                withAnimation {
-                    viewModel.togglePin(id: item.id)
+            if let folderId = folderId {
+                Button(role: .destructive) {
+                    withAnimation {
+                        viewModel.removeCommandFromFolder(commandId: item.id, folderId: folderId)
+                    }
+                } label: {
+                    Label("Remove from Folder", systemImage: "minus.circle")
                 }
-            } label: {
-                Label((item.isPinned ?? false) ? "Unpin" : "Pin", systemImage: "pin")
-            }
-            
-            Button(role: .destructive) {
-                withAnimation {
-                    viewModel.deleteCommand(id: item.id)
+            } else {
+                Button(role: .destructive) {
+                    withAnimation {
+                        viewModel.deleteCommand(id: item.id)
+                    }
+                } label: {
+                    Label("Delete", systemImage: "trash")
                 }
-            } label: {
-                Label("Delete", systemImage: "trash")
             }
             
             Button {
@@ -264,9 +311,7 @@ struct CommandRowView: View {
             }
         }
         .onHover { hover in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovering = hover
-            }
+            isHovering = hover
         }
     }
     
@@ -285,4 +330,40 @@ struct CommandRowView: View {
 
 #Preview {
     ContentView()
+}
+
+
+struct FolderView: View {
+    let folder: CommandFolder
+    @ObservedObject var viewModel: ShelfViewModel
+    @State private var isExpanded: Bool = false
+    
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            ForEach(folder.commands) { item in
+                CommandRowView(item: item, viewModel: viewModel, folderId: folder.id)
+                    .padding(.horizontal, 8)
+            }
+        } label: {
+            HStack {
+                Image(systemName: "folder.fill")
+                    .foregroundColor(.dashbinAccent)
+                Text(folder.name)
+                    .font(.system(.body, weight: .bold))
+                    .foregroundColor(.white)
+                Spacer()
+                Button(action: {
+                    withAnimation {
+                        viewModel.deleteFolder(id: folder.id)
+                    }
+                }) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+        }
+    }
 }
