@@ -406,7 +406,12 @@ struct FolderView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 10) {
+                Text("\(folder.commands.count)")
+                    .font(.caption2.monospaced())
+                    .foregroundColor(.white.opacity(0.4))
+                    .frame(minWidth: 20, alignment: .leading)
+                
                 Image(systemName: "folder")
                     .foregroundColor(.white.opacity(0.5))
                     
@@ -446,11 +451,6 @@ struct FolderView: View {
                 Spacer()
                 
                 HStack(spacing: 8) {
-                    Text("\(folder.commands.count)")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.4))
-                        .padding(.trailing, 2)
-                        
                     if !isEditing {
                         Button(action: {
                             editedName = folder.name
@@ -469,7 +469,7 @@ struct FolderView: View {
                         .opacity(isHovering ? 1 : 0)
                         .allowsHitTesting(isHovering)
                     }
-                        
+                    
                     Button(action: {
                         showingDeleteAlert = true
                     }) {
