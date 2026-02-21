@@ -78,22 +78,26 @@ class ShelfViewModel: ObservableObject {
     func suggestion(for partial: String) -> String? {
         guard !partial.isEmpty else { return nil }
         
-        // We can optimize this by not sorting everything if we just want the best prefix match.
-        // But reusing filtered logic ensures consistency.
-        // However, 'filteredCommands' relies on 'searchText'.
-        // We should replicate the logic for an arbitrary query safely.
-        
         let query = partial.lowercased()
         
-        // Find best match in commands
-        // We prioritize prefix matches for autocomplete
-        // Simple scan:
+        // Find best match in commands (history)
         for item in commands {
             let cmdLower = item.command.lowercased()
             if cmdLower.hasPrefix(query) {
                 return item.command
             }
         }
+        
+        // Find best match in individual folders if not found in history
+        for folder in folders {
+            for item in folder.commands {
+                let cmdLower = item.command.lowercased()
+                if cmdLower.hasPrefix(query) {
+                    return item.command
+                }
+            }
+        }
+        
         return nil
     }
     
