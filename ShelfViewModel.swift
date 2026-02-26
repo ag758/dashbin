@@ -47,6 +47,36 @@ class ShelfViewModel: ObservableObject {
     // MARK: - Search
     @Published var searchText: String = ""
     
+    var filteredFolders: [CommandFolder] {
+        if searchText.isEmpty {
+            return folders
+        } else {
+            let query = searchText.lowercased()
+            return folders.compactMap { folder -> CommandFolder? in
+                let scored = folder.commands.compactMap { item -> (CommandItem, Double)? in
+                    if let score = fuzzyScore(item.command, query: query) {
+                        return (item, score)
+                    }
+                    return nil
+                }
+                
+                let folderMatch = fuzzyScore(folder.name, query: query) != nil
+                
+                if scored.isEmpty {
+                    if folderMatch {
+                        return folder // Show entire folder if its name matches
+                    } else {
+                        return nil
+                    }
+                } else {
+                    var matchedFolder = folder
+                    matchedFolder.commands = scored.sorted { $0.1 > $1.1 }.map { $0.0 }
+                    return matchedFolder
+                }
+            }
+        }
+    }
+    
     var filteredCommands: [CommandItem] {
         let baseList: [CommandItem]
         

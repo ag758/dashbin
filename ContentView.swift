@@ -117,20 +117,20 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
-                                if !shelfViewModel.folders.isEmpty {
-                                    ForEach(shelfViewModel.folders) { folder in
+                                if !shelfViewModel.filteredFolders.isEmpty {
+                                    ForEach(shelfViewModel.filteredFolders) { folder in
                                         FolderView(folder: folder, viewModel: shelfViewModel)
                                     }
                                     Divider().padding(.vertical, 8)
                                 }
                                 
-                                if shelfViewModel.filteredCommands.isEmpty {
+                                if shelfViewModel.filteredCommands.isEmpty && (shelfViewModel.searchText.isEmpty || shelfViewModel.filteredFolders.isEmpty) {
                                     VStack(spacing: 12) {
                                         Spacer().frame(height: 40)
                                         Image(systemName: "clock")
                                             .font(.largeTitle)
                                             .foregroundColor(.secondary.opacity(0.3))
-                                        Text("No history found")
+                                        Text(shelfViewModel.searchText.isEmpty ? "No history found" : "No results found")
                                             .font(.callout)
                                             .foregroundColor(.secondary)
                                     }
@@ -494,17 +494,29 @@ struct FolderView: View {
             }
             .onTapGesture {
                 if !isEditing {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        isExpanded.toggle()
+                    if viewModel.searchText.isEmpty {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            isExpanded.toggle()
+                        }
                     }
                 }
             }
             
-            if isExpanded {
+            let isActivelySearching = !viewModel.searchText.isEmpty
+            if isExpanded || isActivelySearching {
                 VStack(spacing: 0) {
-                    ForEach(folder.commands) { item in
-                        CommandRowView(item: item, viewModel: viewModel, folderId: folder.id)
-                            .padding(.horizontal, 8)
+                    if isActivelySearching && folder.commands.isEmpty {
+                        Text("No matching commands")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.4))
+                            .padding(.vertical, 8)
+                            .padding(.leading, 24)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        ForEach(folder.commands) { item in
+                            CommandRowView(item: item, viewModel: viewModel, folderId: folder.id)
+                                .padding(.horizontal, 8)
+                        }
                     }
                 }
                 .padding(.leading, 8)
