@@ -190,11 +190,45 @@ struct CommandRowView: View {
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(item.command)
-                        .font(.system(.body, design: .monospaced))
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                        .foregroundColor(.white)
+                    if isEditing {
+                        TextField("Command", text: $editedCommand, axis: .vertical)
+                            .font(.system(.body, design: .monospaced))
+                            .textFieldStyle(.plain)
+                            .foregroundColor(.white)
+                            .focused($isFocused)
+                            .autocorrectionDisabled()
+                            .padding(4)
+                            .background(SwiftUI.Color.black.opacity(0.3))
+                            .cornerRadius(4)
+                            .onChange(of: editedCommand) {
+                                let fixed = editedCommand
+                                    .replacingOccurrences(of: "“", with: "\"")
+                                    .replacingOccurrences(of: "”", with: "\"")
+                                    .replacingOccurrences(of: "‘", with: "'")
+                                    .replacingOccurrences(of: "’", with: "'")
+                                    .replacingOccurrences(of: "—", with: "--")
+                                if fixed != editedCommand {
+                                    editedCommand = fixed
+                                }
+                            }
+                            .onSubmit {
+                                submitEdit()
+                            }
+                            .onExitCommand {
+                                isEditing = false
+                            }
+                            .onChange(of: isFocused) {
+                                if !isFocused && isEditing {
+                                    submitEdit()
+                                }
+                            }
+                    } else {
+                        Text(item.command)
+                            .font(.system(.body, design: .monospaced))
+                            .lineLimit(2)
+                            .truncationMode(.tail)
+                            .foregroundColor(.white)
+                    }
                     Spacer()
                 }
                 
@@ -228,9 +262,11 @@ struct CommandRowView: View {
             HStack(spacing: 8) {
                 Button(action: {
                     editedCommand = item.command
-                    isEditing = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        isFocused = true
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        isEditing = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            isFocused = true
+                        }
                     }
                 }) {
                     Image(systemName: "pencil.circle.fill")
@@ -238,43 +274,6 @@ struct CommandRowView: View {
                         .foregroundColor(.white.opacity(0.3))
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $isEditing, arrowEdge: .leading) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Edit Command")
-                            .font(.headline)
-                        TextField("Command", text: $editedCommand, axis: .vertical)
-                            .font(.system(.body, design: .monospaced))
-                            .frame(minWidth: 250, minHeight: 100, alignment: .topLeading)
-                            .focused($isFocused)
-                            .autocorrectionDisabled()
-                            .onChange(of: editedCommand) {
-                                let fixed = editedCommand
-                                    .replacingOccurrences(of: "“", with: "\"")
-                                    .replacingOccurrences(of: "”", with: "\"")
-                                    .replacingOccurrences(of: "‘", with: "'")
-                                    .replacingOccurrences(of: "’", with: "'")
-                                    .replacingOccurrences(of: "—", with: "--")
-                                if fixed != editedCommand {
-                                    editedCommand = fixed
-                                }
-                            }
-                        HStack {
-                            Spacer()
-                            Button("Cancel") {
-                                isEditing = false
-                            }
-                            .keyboardShortcut(.escape, modifiers: [])
-                            
-                            Button("Save") {
-                                submitEdit()
-                            }
-                            .keyboardShortcut(.defaultAction)
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                    .padding()
-                    .frame(width: 300)
-                }
                 if let folderId = folderId {
                     Button(action: {
                         withAnimation {
