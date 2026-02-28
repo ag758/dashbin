@@ -235,7 +235,7 @@ struct CommandRowView: View {
                 }) {
                     Image(systemName: "pencil.circle.fill")
                         .font(.title)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.3))
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $isEditing, arrowEdge: .leading) {
@@ -298,12 +298,14 @@ struct CommandRowView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "plus.circle.fill")
+                        Text(Image(systemName: "plus.circle.fill"))
                             .font(.title)
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.white.opacity(0.3))
                     }
                     .menuStyle(.borderlessButton)
-                    .fixedSize()
+                    .menuIndicator(.hidden)
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                     
                     Button(action: {
                         withAnimation {
