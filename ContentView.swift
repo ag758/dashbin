@@ -278,9 +278,7 @@ struct ContentView: View {
                     Text("Enter a name for the new folder.")
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 36)  // Account for transparent title bar
-            .padding(.bottom, 8)
+            .padding(8)
         }
         .environmentObject(themeManager)
     }
