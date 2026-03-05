@@ -91,6 +91,7 @@ struct ContentView: View {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(themeManager.border, lineWidth: 1)
                 )
+                .padding(.trailing, 4)
                 
                 // Right: Sidebar (The Shelf) — Glass Surface
                 VStack(spacing: 0) {
