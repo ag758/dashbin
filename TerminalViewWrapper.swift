@@ -324,6 +324,7 @@ import Combine
 // MARK: - SwiftUI Wrapper
 struct TerminalViewWrapper: NSViewRepresentable {
     @ObservedObject var viewModel: ShelfViewModel
+    @ObservedObject var themeManager: ThemeManager
     
     func makeNSView(context: Context) -> LocalProcessTerminalView {
         let terminalView = InteractiveTerminalView(frame: .zero)
@@ -416,43 +417,11 @@ struct TerminalViewWrapper: NSViewRepresentable {
         // This implicitly launches the default shell (zsh) with the context initialized
         terminalView.startProcess(executable: "/usr/bin/login", args: ["-f", "-p", userName], environment: envStrings)
         
-        // Theme (Dashbin Modern)
-        // Background: Deep, rich dark blue/grey
-        terminalView.nativeBackgroundColor = NSColor(hex: "1E1E22") 
-        terminalView.nativeForegroundColor = NSColor(hex: "F8F8F2")
-        // terminalView.nativeCursorColor = NSColor(hex: "00F5FF") // Accent Cyan
-        // terminalView.nativeSelectionColor = NSColor(hex: "44475A")
+        // Apply theme colors from ThemeManager
+        Self.applyTheme(themeManager.current, to: terminalView)
         
-        // ANSI Colors (0-15)
-        // Tuned for high contrast and modern aesthetics
-        let ansiColors: [NSColor] = [
-            NSColor(hex: "21222C"), // Black
-            NSColor(hex: "FF5555"), // Red (Bright/Salmon for readability)
-            NSColor(hex: "50FA7B"), // Green
-            NSColor(hex: "F1FA8C"), // Yellow
-            NSColor(hex: "BD93F9"), // Blue (Dracula-ish purple-blue)
-            NSColor(hex: "FF79C6"), // Magenta
-            NSColor(hex: "8BE9FD"), // Cyan
-            NSColor(hex: "F8F8F2"), // White
-            
-            NSColor(hex: "6272A4"), // Bright Black
-            NSColor(hex: "FF6E6E"), // Bright Red
-            NSColor(hex: "69FF94"), // Bright Green
-            NSColor(hex: "FFFFA5"), // Bright Yellow
-            NSColor(hex: "D6ACFF"), // Bright Blue
-            NSColor(hex: "FF92DF"), // Bright Magenta
-            NSColor(hex: "A4FFFF"), // Bright Cyan
-            NSColor(hex: "FFFFFF")  // Bright White
-        ]
-        
-        func toTermColor(_ color: NSColor) -> SwiftTerm.Color {
-            guard let converted = color.usingColorSpace(.sRGB) else { return SwiftTerm.Color(red: 0, green: 0, blue: 0) }
-            return SwiftTerm.Color(red: UInt16(converted.redComponent * 65535),
-                                   green: UInt16(converted.greenComponent * 65535),
-                                   blue: UInt16(converted.blueComponent * 65535))
-        }
-
-        terminalView.installColors(ansiColors.map(toTermColor))
+        // Subscribe to theme changes for live reloading
+        context.coordinator.setupThemeSubscription(terminalView: terminalView, themeManager: themeManager)
         
         // Set the callback
         // Note: extractCurrentCommand() already strips the prompt, so we just use the command directly
@@ -476,6 +445,41 @@ struct TerminalViewWrapper: NSViewRepresentable {
         Coordinator(viewModel: viewModel)
     }
     
+    // MARK: - Apply Theme to Terminal
+    
+    static func applyTheme(_ theme: AppTheme, to terminalView: LocalProcessTerminalView) {
+        terminalView.nativeBackgroundColor = NSColor(hex: theme.terminalBg)
+        terminalView.nativeForegroundColor = NSColor(hex: theme.terminalFg)
+        
+        let ansiColors: [NSColor] = [
+            NSColor(hex: theme.ansiBlack),
+            NSColor(hex: theme.ansiRed),
+            NSColor(hex: theme.ansiGreen),
+            NSColor(hex: theme.ansiYellow),
+            NSColor(hex: theme.ansiBlue),
+            NSColor(hex: theme.ansiMagenta),
+            NSColor(hex: theme.ansiCyan),
+            NSColor(hex: theme.ansiWhite),
+            NSColor(hex: theme.ansiBrightBlack),
+            NSColor(hex: theme.ansiBrightRed),
+            NSColor(hex: theme.ansiBrightGreen),
+            NSColor(hex: theme.ansiBrightYellow),
+            NSColor(hex: theme.ansiBrightBlue),
+            NSColor(hex: theme.ansiBrightMagenta),
+            NSColor(hex: theme.ansiBrightCyan),
+            NSColor(hex: theme.ansiBrightWhite),
+        ]
+        
+        func toTermColor(_ color: NSColor) -> SwiftTerm.Color {
+            guard let converted = color.usingColorSpace(.sRGB) else { return SwiftTerm.Color(red: 0, green: 0, blue: 0) }
+            return SwiftTerm.Color(red: UInt16(converted.redComponent * 65535),
+                                   green: UInt16(converted.greenComponent * 65535),
+                                   blue: UInt16(converted.blueComponent * 65535))
+        }
+        
+        terminalView.installColors(ansiColors.map(toTermColor))
+    }
+    
     class Coordinator {
         var viewModel: ShelfViewModel
         var cancellables = Set<AnyCancellable>()
@@ -494,6 +498,15 @@ struct TerminalViewWrapper: NSViewRepresentable {
                     case .paste(let cmd):
                         terminalView.send(txt: cmd)
                     }
+                }
+                .store(in: &cancellables)
+        }
+        
+        func setupThemeSubscription(terminalView: LocalProcessTerminalView, themeManager: ThemeManager) {
+            themeManager.themeChanged
+                .receive(on: DispatchQueue.main)
+                .sink { theme in
+                    TerminalViewWrapper.applyTheme(theme, to: terminalView)
                 }
                 .store(in: &cancellables)
         }
