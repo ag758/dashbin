@@ -91,8 +91,6 @@ struct ContentView: View {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(themeManager.border, lineWidth: 1)
                 )
-                .padding(.leading, 8)
-                .padding(.vertical, 8)
                 
                 // Right: Sidebar (The Shelf) — Glass Surface
                 VStack(spacing: 0) {
@@ -266,8 +264,7 @@ struct ContentView: View {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(themeManager.surface.opacity(0.85))
                 )
-                .padding(.trailing, 8)
-                .padding(.vertical, 8)
+                .padding(.trailing, 4)
                 .alert("New Folder", isPresented: $showingNewFolderAlert) {
                     TextField("Folder Name", text: $newFolderName)
                     Button("Cancel", role: .cancel) {
@@ -281,6 +278,9 @@ struct ContentView: View {
                     Text("Enter a name for the new folder.")
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.top, 36)  // Account for transparent title bar
+            .padding(.bottom, 8)
         }
         .environmentObject(themeManager)
     }
@@ -299,57 +299,62 @@ struct ThemePickerView: View {
                 .padding(.horizontal, 8)
                 .padding(.top, 4)
             
-            ForEach(AppTheme.allThemes) { theme in
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        themeManager.current = theme
-                    }
-                }) {
-                    HStack(spacing: 10) {
-                        // Color preview swatch
-                        HStack(spacing: 2) {
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(SwiftUI.Color(hex: theme.base))
-                                .frame(width: 14, height: 14)
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(SwiftUI.Color(hex: theme.accent))
-                                .frame(width: 14, height: 14)
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(SwiftUI.Color(hex: theme.accentSecondary))
-                                .frame(width: 14, height: 14)
+            ScrollView {
+                VStack(spacing: 2) {
+                    ForEach(AppTheme.allThemes) { theme in
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                themeManager.current = theme
+                            }
+                        }) {
+                            HStack(spacing: 10) {
+                                // Color preview swatch
+                                HStack(spacing: 2) {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(SwiftUI.Color(hex: theme.base))
+                                        .frame(width: 14, height: 14)
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(SwiftUI.Color(hex: theme.accent))
+                                        .frame(width: 14, height: 14)
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(SwiftUI.Color(hex: theme.accentSecondary))
+                                        .frame(width: 14, height: 14)
+                                }
+                                .padding(3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(SwiftUI.Color(hex: theme.surface))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                                )
+                                
+                                Text(theme.name)
+                                    .font(.system(size: 13, weight: .medium))
+                                
+                                Spacer()
+                                
+                                if themeManager.current.id == theme.id {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(themeManager.current.id == theme.id 
+                                        ? Color.accentColor.opacity(0.1) 
+                                        : Color.clear)
+                            )
                         }
-                        .padding(3)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(SwiftUI.Color(hex: theme.surface))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
-                        )
-                        
-                        Text(theme.name)
-                            .font(.system(size: 13, weight: .medium))
-                        
-                        Spacer()
-                        
-                        if themeManager.current.id == theme.id {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.accentColor)
-                        }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(themeManager.current.id == theme.id 
-                                ? Color.accentColor.opacity(0.1) 
-                                : Color.clear)
-                    )
                 }
-                .buttonStyle(.plain)
             }
+            .frame(maxHeight: 380)
         }
         .padding(8)
         .frame(width: 240)

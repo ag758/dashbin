@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AppKit
 
 // MARK: - Theme Definition
 
@@ -66,7 +67,7 @@ struct AppTheme: Identifiable, Equatable {
 
 extension AppTheme {
 
-    // ── Dashbin Classic: Deep navy from the app icon (#1E2A78 accent) ──
+    // ── 1. Dashbin Classic: Deep navy from the app icon ──
     static let dashbinClassic = AppTheme(
         id: "dashbin_classic",
         name: "Dashbin Classic",
@@ -80,14 +81,14 @@ extension AppTheme {
         textPrimary: "E8EAFF",
         textSecondary: "A0A4CC",
         textMuted: "5A5F8A",
-        accent: "4A6CF7",       // Dashbin icon blue
+        accent: "4A6CF7",
         accentSecondary: "7B93FF",
         accentTertiary: "F0C050",
         success: "5AE87B",
         info: "4A6CF7",
-        aura1: "4A6CF7",        // Blue glow
-        aura2: "7B93FF",        // Lighter blue
-        aura3: "F0C050",        // Warm amber
+        aura1: "4A6CF7",
+        aura2: "7B93FF",
+        aura3: "F0C050",
         ansiBlack: "181C3A",
         ansiRed: "FF6B6B",
         ansiGreen: "5AE87B",
@@ -108,7 +109,7 @@ extension AppTheme {
         isLight: false
     )
 
-    // ── Obsidian: The deep charcoal / lime theme we just built ──
+    // ── 2. Obsidian: Deep charcoal / lime ──
     static let obsidian = AppTheme(
         id: "obsidian",
         name: "Obsidian",
@@ -150,7 +151,7 @@ extension AppTheme {
         isLight: false
     )
 
-    // ── Arctic: Clean light theme with high contrast ──
+    // ── 3. Arctic: Clean light theme ──
     static let arctic = AppTheme(
         id: "arctic",
         name: "Arctic",
@@ -192,7 +193,7 @@ extension AppTheme {
         isLight: true
     )
 
-    // ── Ember: Warm, fiery dark theme ──
+    // ── 4. Ember: Warm, fiery dark ──
     static let ember = AppTheme(
         id: "ember",
         name: "Ember",
@@ -234,7 +235,7 @@ extension AppTheme {
         isLight: false
     )
 
-    // ── Synthwave: Neon purple / pink retro theme ──
+    // ── 5. Synthwave: Neon purple / pink retro ──
     static let synthwave = AppTheme(
         id: "synthwave",
         name: "Synthwave",
@@ -276,12 +277,313 @@ extension AppTheme {
         isLight: false
     )
 
+    // ── 6. Solarized Dark: Ethan Schoonover's classic warm dark ──
+    static let solarizedDark = AppTheme(
+        id: "solarized_dark",
+        name: "Solarized Dark",
+        icon: "sun.haze.fill",
+        base: "002B36",
+        surface: "073642",
+        elevated: "0A4050",
+        terminalBg: "002B36",
+        border: "1A5060",
+        borderActive: "268BD2",
+        textPrimary: "FDF6E3",
+        textSecondary: "93A1A1",
+        textMuted: "586E75",
+        accent: "268BD2",
+        accentSecondary: "2AA198",
+        accentTertiary: "B58900",
+        success: "859900",
+        info: "268BD2",
+        aura1: "268BD2",
+        aura2: "2AA198",
+        aura3: "B58900",
+        ansiBlack: "073642",
+        ansiRed: "DC322F",
+        ansiGreen: "859900",
+        ansiYellow: "B58900",
+        ansiBlue: "268BD2",
+        ansiMagenta: "D33682",
+        ansiCyan: "2AA198",
+        ansiWhite: "EEE8D5",
+        ansiBrightBlack: "586E75",
+        ansiBrightRed: "CB4B16",
+        ansiBrightGreen: "93A1A1",
+        ansiBrightYellow: "839496",
+        ansiBrightBlue: "657B83",
+        ansiBrightMagenta: "6C71C4",
+        ansiBrightCyan: "FDF6E3",
+        ansiBrightWhite: "FDF6E3",
+        terminalFg: "FDF6E3",
+        isLight: false
+    )
+
+    // ── 7. Solarized Light: Cream / warm light ──
+    static let solarizedLight = AppTheme(
+        id: "solarized_light",
+        name: "Solarized Light",
+        icon: "sun.min.fill",
+        base: "FDF6E3",
+        surface: "EEE8D5",
+        elevated: "DDD6C1",
+        terminalBg: "FDF6E3",
+        border: "C8C1AB",
+        borderActive: "93A1A1",
+        textPrimary: "073642",
+        textSecondary: "586E75",
+        textMuted: "93A1A1",
+        accent: "268BD2",
+        accentSecondary: "2AA198",
+        accentTertiary: "B58900",
+        success: "859900",
+        info: "268BD2",
+        aura1: "268BD2",
+        aura2: "2AA198",
+        aura3: "B58900",
+        ansiBlack: "073642",
+        ansiRed: "DC322F",
+        ansiGreen: "859900",
+        ansiYellow: "B58900",
+        ansiBlue: "268BD2",
+        ansiMagenta: "D33682",
+        ansiCyan: "2AA198",
+        ansiWhite: "EEE8D5",
+        ansiBrightBlack: "586E75",
+        ansiBrightRed: "CB4B16",
+        ansiBrightGreen: "93A1A1",
+        ansiBrightYellow: "839496",
+        ansiBrightBlue: "657B83",
+        ansiBrightMagenta: "6C71C4",
+        ansiBrightCyan: "FDF6E3",
+        ansiBrightWhite: "FDF6E3",
+        terminalFg: "073642",
+        isLight: true
+    )
+
+    // ── 8. Nord: Cool arctic blue-grey ──
+    static let nord = AppTheme(
+        id: "nord",
+        name: "Nord",
+        icon: "snowflake",
+        base: "2E3440",
+        surface: "3B4252",
+        elevated: "434C5E",
+        terminalBg: "2E3440",
+        border: "4C566A",
+        borderActive: "5E81AC",
+        textPrimary: "ECEFF4",
+        textSecondary: "D8DEE9",
+        textMuted: "7B88A1",
+        accent: "88C0D0",
+        accentSecondary: "5E81AC",
+        accentTertiary: "EBCB8B",
+        success: "A3BE8C",
+        info: "88C0D0",
+        aura1: "88C0D0",
+        aura2: "5E81AC",
+        aura3: "EBCB8B",
+        ansiBlack: "3B4252",
+        ansiRed: "BF616A",
+        ansiGreen: "A3BE8C",
+        ansiYellow: "EBCB8B",
+        ansiBlue: "81A1C1",
+        ansiMagenta: "B48EAD",
+        ansiCyan: "88C0D0",
+        ansiWhite: "E5E9F0",
+        ansiBrightBlack: "4C566A",
+        ansiBrightRed: "BF616A",
+        ansiBrightGreen: "A3BE8C",
+        ansiBrightYellow: "EBCB8B",
+        ansiBrightBlue: "81A1C1",
+        ansiBrightMagenta: "B48EAD",
+        ansiBrightCyan: "8FBCBB",
+        ansiBrightWhite: "ECEFF4",
+        terminalFg: "ECEFF4",
+        isLight: false
+    )
+
+    // ── 9. Monokai Pro: Warm muted dark with vivid syntax ──
+    static let monokaiPro = AppTheme(
+        id: "monokai_pro",
+        name: "Monokai Pro",
+        icon: "paintbrush.fill",
+        base: "2D2A2E",
+        surface: "403E41",
+        elevated: "4A474D",
+        terminalBg: "2D2A2E",
+        border: "524F56",
+        borderActive: "727072",
+        textPrimary: "FCFCFA",
+        textSecondary: "C1C0C0",
+        textMuted: "727072",
+        accent: "FFD866",
+        accentSecondary: "78DCE8",
+        accentTertiary: "FF6188",
+        success: "A9DC76",
+        info: "78DCE8",
+        aura1: "FFD866",
+        aura2: "FF6188",
+        aura3: "78DCE8",
+        ansiBlack: "403E41",
+        ansiRed: "FF6188",
+        ansiGreen: "A9DC76",
+        ansiYellow: "FFD866",
+        ansiBlue: "FC9867",
+        ansiMagenta: "AB9DF2",
+        ansiCyan: "78DCE8",
+        ansiWhite: "FCFCFA",
+        ansiBrightBlack: "727072",
+        ansiBrightRed: "FF6188",
+        ansiBrightGreen: "A9DC76",
+        ansiBrightYellow: "FFD866",
+        ansiBrightBlue: "FC9867",
+        ansiBrightMagenta: "AB9DF2",
+        ansiBrightCyan: "78DCE8",
+        ansiBrightWhite: "FCFCFA",
+        terminalFg: "FCFCFA",
+        isLight: false
+    )
+
+    // ── 10. Everforest: Muted green / nature ──
+    static let everforest = AppTheme(
+        id: "everforest",
+        name: "Everforest",
+        icon: "leaf.fill",
+        base: "272E33",
+        surface: "2E383C",
+        elevated: "374145",
+        terminalBg: "272E33",
+        border: "414B50",
+        borderActive: "56635A",
+        textPrimary: "D3C6AA",
+        textSecondary: "9DA9A0",
+        textMuted: "6B7B75",
+        accent: "A7C080",
+        accentSecondary: "7FBBB3",
+        accentTertiary: "DBBC7F",
+        success: "A7C080",
+        info: "7FBBB3",
+        aura1: "A7C080",
+        aura2: "7FBBB3",
+        aura3: "DBBC7F",
+        ansiBlack: "374145",
+        ansiRed: "E67E80",
+        ansiGreen: "A7C080",
+        ansiYellow: "DBBC7F",
+        ansiBlue: "7FBBB3",
+        ansiMagenta: "D699B6",
+        ansiCyan: "83C092",
+        ansiWhite: "D3C6AA",
+        ansiBrightBlack: "56635A",
+        ansiBrightRed: "E67E80",
+        ansiBrightGreen: "A7C080",
+        ansiBrightYellow: "DBBC7F",
+        ansiBrightBlue: "7FBBB3",
+        ansiBrightMagenta: "D699B6",
+        ansiBrightCyan: "83C092",
+        ansiBrightWhite: "D3C6AA",
+        terminalFg: "D3C6AA",
+        isLight: false
+    )
+
+    // ── 11. Catppuccin Mocha: Pastel dark with soothing tones ──
+    static let catppuccin = AppTheme(
+        id: "catppuccin",
+        name: "Catppuccin",
+        icon: "cup.and.saucer.fill",
+        base: "1E1E2E",
+        surface: "2A2A3C",
+        elevated: "313244",
+        terminalBg: "1E1E2E",
+        border: "45475A",
+        borderActive: "585B70",
+        textPrimary: "CDD6F4",
+        textSecondary: "BAC2DE",
+        textMuted: "6C7086",
+        accent: "CBA6F7",
+        accentSecondary: "89B4FA",
+        accentTertiary: "F9E2AF",
+        success: "A6E3A1",
+        info: "89B4FA",
+        aura1: "CBA6F7",
+        aura2: "89B4FA",
+        aura3: "F9E2AF",
+        ansiBlack: "45475A",
+        ansiRed: "F38BA8",
+        ansiGreen: "A6E3A1",
+        ansiYellow: "F9E2AF",
+        ansiBlue: "89B4FA",
+        ansiMagenta: "CBA6F7",
+        ansiCyan: "94E2D5",
+        ansiWhite: "CDD6F4",
+        ansiBrightBlack: "585B70",
+        ansiBrightRed: "F38BA8",
+        ansiBrightGreen: "A6E3A1",
+        ansiBrightYellow: "F9E2AF",
+        ansiBrightBlue: "89B4FA",
+        ansiBrightMagenta: "CBA6F7",
+        ansiBrightCyan: "94E2D5",
+        ansiBrightWhite: "CDD6F4",
+        terminalFg: "CDD6F4",
+        isLight: false
+    )
+
+    // ── 12. Rose Pine: Muted rose / dawn ──
+    static let rosePine = AppTheme(
+        id: "rose_pine",
+        name: "Rosé Pine",
+        icon: "sparkles",
+        base: "191724",
+        surface: "1F1D2E",
+        elevated: "26233A",
+        terminalBg: "191724",
+        border: "312E44",
+        borderActive: "44405A",
+        textPrimary: "E0DEF4",
+        textSecondary: "908CAA",
+        textMuted: "6E6A86",
+        accent: "EBBCBA",
+        accentSecondary: "C4A7E7",
+        accentTertiary: "F6C177",
+        success: "9CCFD8",
+        info: "C4A7E7",
+        aura1: "EBBCBA",
+        aura2: "C4A7E7",
+        aura3: "F6C177",
+        ansiBlack: "26233A",
+        ansiRed: "EB6F92",
+        ansiGreen: "9CCFD8",
+        ansiYellow: "F6C177",
+        ansiBlue: "31748F",
+        ansiMagenta: "C4A7E7",
+        ansiCyan: "9CCFD8",
+        ansiWhite: "E0DEF4",
+        ansiBrightBlack: "6E6A86",
+        ansiBrightRed: "EB6F92",
+        ansiBrightGreen: "9CCFD8",
+        ansiBrightYellow: "F6C177",
+        ansiBrightBlue: "31748F",
+        ansiBrightMagenta: "C4A7E7",
+        ansiBrightCyan: "EBBCBA",
+        ansiBrightWhite: "E0DEF4",
+        terminalFg: "E0DEF4",
+        isLight: false
+    )
+
     static let allThemes: [AppTheme] = [
         .dashbinClassic,
         .obsidian,
         .arctic,
+        .solarizedLight,
         .ember,
-        .synthwave
+        .synthwave,
+        .solarizedDark,
+        .nord,
+        .monokaiPro,
+        .everforest,
+        .catppuccin,
+        .rosePine,
     ]
 }
 
@@ -293,6 +595,8 @@ class ThemeManager: ObservableObject {
             UserDefaults.standard.set(current.id, forKey: "selectedThemeId")
             // Notify terminal to reload colors
             themeChanged.send(current)
+            // Update window title bar appearance
+            applyWindowAppearance()
         }
     }
     
@@ -301,6 +605,29 @@ class ThemeManager: ObservableObject {
     init() {
         let savedId = UserDefaults.standard.string(forKey: "selectedThemeId") ?? "dashbin_classic"
         self.current = AppTheme.allThemes.first { $0.id == savedId } ?? .dashbinClassic
+        // Apply on launch after a short delay to ensure the window exists
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
+            applyWindowAppearance()
+        }
+    }
+    
+    func applyWindowAppearance() {
+        guard let window = NSApplication.shared.windows.first else { return }
+        
+        // Set window appearance to match theme
+        if current.isLight {
+            window.appearance = NSAppearance(named: .aqua)
+        } else {
+            window.appearance = NSAppearance(named: .darkAqua)
+        }
+        
+        // Color the title bar to match the base color
+        window.isOpaque = false
+        window.backgroundColor = NSColor(hex: current.base)
+        
+        // Use unified title + toolbar for seamless look
+        window.titlebarAppearsTransparent = true
+        window.styleMask.insert(.fullSizeContentView)
     }
     
     // Convenience color accessors
