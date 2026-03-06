@@ -102,51 +102,10 @@ struct ContentView: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(themeManager.textMuted)
                             
-                            ZStack(alignment: .leading) {
-                                if let suggestion = shelfViewModel.suggestedCommand, 
-                                   !shelfViewModel.searchText.isEmpty,
-                                   suggestion.lowercased().hasPrefix(shelfViewModel.searchText.lowercased()) {
-                                    
-                                    let prefix = String(suggestion.prefix(shelfViewModel.searchText.count))
-                                    let suffix = String(suggestion.dropFirst(shelfViewModel.searchText.count))
-                                    
-                                    // Use non-breaking spaces to preserve whitespace width
-                                    let displayPrefix = prefix.replacingOccurrences(of: " ", with: "\u{00a0}")
-                                    let displaySuffix = suffix.replacingOccurrences(of: " ", with: "\u{00a0}")
-                                    
-                                    (Text(displayPrefix).foregroundColor(SwiftUI.Color.clear) + Text(displaySuffix).foregroundColor(themeManager.textPrimary.opacity(0.25)))
-                                        .font(.system(.body, design: .monospaced))
-                                        .allowsHitTesting(false)
-                                }
-                                
                                 TextField("Search history...", text: $shelfViewModel.searchText)
                                     .textFieldStyle(.plain)
                                     .font(.system(.body, design: .monospaced))
                                     .foregroundColor(themeManager.textPrimary.opacity(0.9))
-                                    .onKeyPress(.tab) {
-                                        if let suggestion = shelfViewModel.suggestedCommand {
-                                            shelfViewModel.searchText = suggestion
-                                            return .handled
-                                        }
-                                        return .ignored
-                                    }
-                            }
-                            
-                            if shelfViewModel.suggestedCommand != nil && !shelfViewModel.searchText.isEmpty {
-                                Text("TAB")
-                                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                    .foregroundColor(themeManager.accent.opacity(0.8))
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                            .fill(themeManager.accent.opacity(0.1))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                            .stroke(themeManager.accent.opacity(0.2), lineWidth: 0.5)
-                                    )
-                            }
                             
                             Button(action: {
                                 showingNewFolderAlert = true
