@@ -203,9 +203,6 @@ class ShelfViewModel: ObservableObject {
         // If we finished the query, it's a match
         return queryIndex == query.endIndex ? score : nil
     }
-    
-    private let maxCommandHistory = 5000
-    
     // Action stream for Terminal to listen to
     enum TerminalAction {
         case run(String)
@@ -308,12 +305,6 @@ class ShelfViewModel: ObservableObject {
             var newItem = CommandItem(command: trimmed)
             newItem.isPinned = existingIsPinned
             self.commands.insert(newItem, at: 0)
-            
-            // Enforce limit
-            if self.commands.count > self.maxCommandHistory {
-                self.commands = Array(self.commands.prefix(self.maxCommandHistory))
-            }
-            
             self.saveCommands()
         }
     }
