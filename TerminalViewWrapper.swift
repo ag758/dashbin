@@ -279,20 +279,24 @@ class InteractiveTerminalView: LocalProcessTerminalView {
             }
             
             // Flexible regex for prompt stripping
-            let pattern = #".*[%$#>❯➜\]\)] *"#
+            // Use non-greedy match to find the FIRST typical prompt ending at the start of the line
+            let pattern = #"^.*?[%$#>❯➜\u2713\u2717]\s*"#
             if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
                 let nsString = lineString as NSString
                 let matches = regex.matches(in: lineString, options: [], range: NSRange(location: 0, length: nsString.length))
-                if let lastMatch = matches.last {
-                    let afterPrompt = nsString.substring(from: lastMatch.range.location + lastMatch.range.length)
-                    // Trim only leading whitespace to preserve trailing spaces (cursor position)
-                    var candidate = afterPrompt
-                    if let range = candidate.range(of: "^\\s+", options: .regularExpression) {
-                        candidate.removeSubrange(range)
+                if let firstMatch = matches.first {
+                    // Reasonable prompt length check to avoid stripping entire long commands if prompt is missing
+                    if firstMatch.range.length < 150 {
+                        let afterPrompt = nsString.substring(from: firstMatch.range.location + firstMatch.range.length)
+                        // Trim only leading whitespace to preserve trailing spaces (cursor position)
+                        var candidate = afterPrompt
+                        if let range = candidate.range(of: "^\\s+", options: .regularExpression) {
+                            candidate.removeSubrange(range)
+                        }
+                        
+                        // If we found a prompt but there's nothing after it, this is an empty command
+                        return candidate.isEmpty ? nil : candidate
                     }
-                    
-                    // If we found a prompt but there's nothing after it, this is an empty command
-                    return candidate.isEmpty ? nil : candidate
                 }
             }
             
