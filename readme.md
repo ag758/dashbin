@@ -8,12 +8,16 @@
 
 <p align="center">
   <strong>🚀 Early Access (Beta)</strong><br>
-  <em>Note: We are in early beta. Future releases will be signed with an Apple Developer certificate to remove the manual security bypass steps.</em>
+  <em>Note: We are in early beta. Future releases will be officially notarized by Apple to streamline the first-time setup process.</em>
 </p>
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=KABoZsEVm-g">
-    <img src="https://img.youtube.com/vi/KABoZsEVm-g/0.jpg" alt="Watch the Dashbin Demo">
+    <img src="https://img.youtube.com/vi/KABoZsEVm-g/0.jpg" alt="Dashbin Promotional Video" width="600">
+  </a>
+  <br>
+  <a href="https://www.youtube.com/watch?v=KABoZsEVm-g">
+    <img src="https://img.shields.io/badge/YouTube-Watch%20Promotional%20Video-red?style=for-the-badge&logo=youtube" alt="Watch Promo">
   </a>
 </p>
 
@@ -29,15 +33,15 @@
    - Double-click the downloaded `Dashbin.dmg` file to mount it.
    - Drag the **Dashbin** app icon into your **Applications** folder.
 
-3. **Bypass macOS Security (First Launch)**
-   Because Dashbin is not currently signed with an Apple Developer certificate, macOS will block the initial launch. To open it:
-   - Try to open **Dashbin** from your Applications folder. When the "Developer cannot be verified" warning appears, click **Cancel**.
+3. **One-Time macOS Setup (First Launch)**
+   As Dashbin is currently in early beta, macOS requires a quick one-time confirmation to run the application for the first time:
+   - Attempt to open **Dashbin** from your Applications folder. When the verification notice appears, click **Cancel**.
    - Open **System Settings** and navigate to **Privacy & Security**.
-   - Scroll down to the **Security** section where you'll see a notice about Dashbin being blocked.
+   - Scroll down to the bottom where you'll see a note about Dashbin requiring confirmation.
    - Click **Open Anyway**.
-   - Confirm by entering your password or using Touch ID, then click **Open** on the final prompt.
+   - Authenticate (Password or Touch ID) and click **Open** on the final prompt.
 
-*(Note: These steps are only required for the very first launch of this beta version. Once we move out of early access and sign the application, new releases will install normally without these extra security steps.)*
+*(Note: These steps are only necessary for the very first launch of this beta version. Once we move out of early access and complete Apple's notarization process, new releases will open immediately.)*
 
 
 ## Features
