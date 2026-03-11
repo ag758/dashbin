@@ -1,6 +1,10 @@
-# Dashbin
+<p align="center">
+  <img src="dashbin/Assets.xcassets/AppIcon.appiconset/icon_512x512.png" width="200" alt="Dashbin Logo">
+</p>
 
-Dashbin is a modern macOS application featuring an integrated terminal and an interactive command shelf.
+<h1 align="center">Dashbin</h1>
+
+<p align="center">Dashbin is a modern macOS application featuring an integrated terminal and an interactive command shelf.</p>
 
 ## Downloading and Installing
 
