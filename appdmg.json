@@ -1,0 +1,24 @@
+{
+  "title": "Dashbin",
+  "icon-size": 100,
+  "window": {
+    "size": {
+      "width": 640,
+      "height": 480
+    }
+  },
+  "contents": [
+    {
+      "x": 160,
+      "y": 240,
+      "type": "file",
+      "path": "Dashbin_Dist/Dashbin.app"
+    },
+    {
+      "x": 480,
+      "y": 240,
+      "type": "link",
+      "path": "/Applications"
+    }
+  ]
+}
