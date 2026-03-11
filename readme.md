@@ -6,6 +6,11 @@
 
 <p align="center">Dashbin is a modern macOS application featuring an integrated terminal and an interactive command shelf.</p>
 
+<p align="center">
+  <strong>🚀 Early Access (Beta)</strong><br>
+  <em>Note: We are in early beta. Future releases will be signed with an Apple Developer certificate to remove the manual security bypass steps.</em>
+</p>
+
 ## Downloading and Installing
 
 ### Step-by-step Installation Guide
@@ -26,7 +31,7 @@
    - Click **Open Anyway**.
    - Confirm by entering your password or using Touch ID, then click **Open** on the final prompt.
 
-*(Note: These steps are only required for the very first launch. Future updates or launches will work as expected.)*
+*(Note: These steps are only required for the very first launch of this beta version. Once we move out of early access and sign the application, new releases will install normally without these extra security steps.)*
 
 
 ## Features
