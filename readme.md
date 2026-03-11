@@ -4,7 +4,7 @@
 
 <h1 align="center">Dashbin</h1>
 
-<p align="center">Dashbin is a modern macOS application featuring an integrated terminal and an interactive command shelf.</p>
+<p align="center"><strong>The terminal with a memory.</strong> Dashbin is an ultra-convenient macOS terminal that eliminates the need to dig through history by putting your most important commands in a persistent, interactive shelf.</p>
 
 <p align="center">
   <strong>🚀 Early Access (Beta)</strong><br>
@@ -47,7 +47,7 @@
 ## Features
 
 - **Built-in Terminal**: Powered by SwiftTerm.
-- **Dynamic Command Shelf**: Store, search, and edit common commands.
+- **Interactive Command Shelf**: The "memory" of your terminal. Store, search, and instantly execute your most frequent commands.
 - **Customizable Themes**: Supports Dark Modern, Light Modern, and other high-contrast themes out of the box.
 
 Enjoy using Dashbin!
