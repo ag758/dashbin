@@ -11,6 +11,12 @@
   <em>Note: We are in early beta. Future releases will be signed with an Apple Developer certificate to remove the manual security bypass steps.</em>
 </p>
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=KABoZsEVm-g">
+    <img src="https://img.youtube.com/vi/KABoZsEVm-g/0.jpg" alt="Watch the Dashbin Demo">
+  </a>
+</p>
+
 ## Downloading and Installing
 
 ### Step-by-step Installation Guide
