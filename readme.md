@@ -17,7 +17,7 @@
   </a>
   <br>
   <a href="https://www.youtube.com/watch?v=KABoZsEVm-g">
-    <img src="https://img.shields.io/badge/YouTube-Watch%20Promotional%20Video-red?style=for-the-badge&logo=youtube" alt="Watch Promo">
+    <img src="https://img.shields.io/badge/YouTube-Watch%20Promotional%20Video-green?style=for-the-badge&logo=youtube" alt="Watch Promo">
   </a>
 </p>
 
