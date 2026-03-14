@@ -12,11 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=KABoZsEVm-g">
-    <img src="https://img.youtube.com/vi/KABoZsEVm-g/0.jpg" alt="Dashbin Promotional Video" width="600">
+  <a href="https://youtu.be/dEaG6IUfAaU">
+    <img src="https://img.youtube.com/vi/dEaG6IUfAaU/0.jpg" alt="Dashbin Promotional Video" width="600">
   </a>
   <br>
-  <a href="https://www.youtube.com/watch?v=KABoZsEVm-g">
+  <a href="https://youtu.be/dEaG6IUfAaU">
     <img src="https://img.shields.io/badge/YouTube-Watch%20Promotional%20Video-green?style=for-the-badge&logo=youtube" alt="Watch Promo">
   </a>
 </p>
